@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Intelligent Addenda Integrator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#eff6ff',
+                100: '#dbeafe',
+                200: '#bfdbfe',
+                300: '#93c5fd',
+                400: '#60a5fa',
+                500: '#3b82f6',
+                600: '#2563eb',
+                700: '#1d4ed8',
+                800: '#1e40af',
+                900: '#1e3a8a',
+              },
+              accent: {
+                50: '#fffbeb',
+                100: '#fef3c7',
+                200: '#fde68a',
+                300: '#fcd34d',
+                400: '#fbbf24',
+                500: '#f59e0b',
+                600: '#d97706',
+                700: '#b45309',
+                800: '#92400e',
+                900: '#78350f',
+              }
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            animation: {
+              'pop-in': 'pop-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both',
+              'pulse-subtle': 'pulse-subtle 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+              'pop-in': {
+                '0%': { opacity: '0', transform: 'scale(0.5)' },
+                '100%': { opacity: '1', transform: 'scale(1)' },
+              },
+              'pulse-subtle': {
+                '0%, 100%': { 
+                  transform: 'scale(1)',
+                  boxShadow: '0 10px 15px -3px rgba(30, 64, 175, 0.1), 0 4px 6px -2px rgba(30, 64, 175, 0.05)' 
+                },
+                '50%': { 
+                  transform: 'scale(1.02)',
+                  boxShadow: '0 20px 25px -5px rgba(30, 64, 175, 0.2), 0 10px 10px -5px rgba(30, 64, 175, 0.1)' 
+                }
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      /* For custom scrollbars if needed */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f8fafc;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+      .feature-card {
+        position: relative;
+        overflow: hidden; /* Important for the glow effect */
+      }
+      .feature-card:before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 250px;
+        height: 250px;
+        background-image: radial-gradient(circle, rgba(37, 99, 235, 0.15), transparent 70%);
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        z-index: 0;
+      }
+      .feature-card:hover:before {
+        opacity: 1;
+      }
+      .feature-card > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* V3.1: Hero Section Background - Updated to Blueprint Grid */
+       .hero-section-bg {
+          background-color: #f8fafc; /* slate-50 */
+          background-image: 
+            linear-gradient(to right, rgba(191, 219, 254, 0.4) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(191, 219, 254, 0.4) 1px, transparent 1px);
+          background-size: 2rem 2rem; /* 32px grid */
+          position: relative;
+          overflow: hidden;
+        }
+        .hero-section-bg::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 900px;
+          height: 900px;
+          background-image: radial-gradient(circle, rgba(59, 130, 246, 0.1), transparent 60%);
+          pointer-events: none;
+        }
+
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "jspdf": "https://esm.sh/jspdf@^3.0.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.11.0",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "recharts": "https://esm.sh/recharts@^3.1.0",
+    "react-dropzone": "https://esm.sh/react-dropzone@^14.3.8",
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.5.136",
+    "framer-motion": "https://esm.sh/framer-motion@^12.23.7",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2",
+    "pixelmatch": "https://esm.sh/pixelmatch@^7.1.0",
+    "pdf-lib": "https://esm.sh/pdf-lib@^1.17.1",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.45.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-slate-50 text-gray-800 font-sans">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
