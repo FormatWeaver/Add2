@@ -1,19 +1,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-/**
- * CONFIGURATION:
- * URL: https://bwmxfkftczbzfarwaefg.supabase.co
- * Key: sb_publishable_8bpAiMhsXX-0APcIunNtEg_CzqwKiTj
- */
-
 const supabaseUrl = 'https://bwmxfkftczbzfarwaefg.supabase.co'; 
 const supabaseAnonKey = 'sb_publishable_8bpAiMhsXX-0APcIunNtEg_CzqwKiTj';
 
 const isPlaceholder = (val: string) => !val || val.includes('YOUR_') || val.length < 10;
 
 const createMockClient = () => {
-    // Silent mock to prevent UI noise
     return {
         auth: { 
             getSession: () => Promise.resolve({ data: { session: null }, error: null }),
@@ -47,10 +40,9 @@ if (!isPlaceholder(supabaseUrl) && !isPlaceholder(supabaseAnonKey)) {
     try {
         supabase = createClient(supabaseUrl, supabaseAnonKey, {
             auth: {
-                // Disable persistence if network is unstable to prevent refresh loops
-                persistSession: false, 
-                autoRefreshToken: false,
-                detectSessionInUrl: false
+                persistSession: true, // Enable persistence for better UX
+                autoRefreshToken: true,
+                detectSessionInUrl: true
             }
         });
     } catch (e) {

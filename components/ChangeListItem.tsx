@@ -1,5 +1,6 @@
-import React from 'react';
-import { AppChangeLogItem, ChangeStatus, ChangeType } from '../types';
+
+import React, { useState } from 'react';
+import { AppChangeLogItem, ChangeStatus, ChangeType, RiskLevel } from '../types';
 import { PencilSquareIcon } from './icons/PencilSquareIcon';
 import { MapPinIcon } from './icons/MapPinIcon';
 import { DocumentSearchIcon } from './icons/DocumentSearchIcon';
@@ -12,6 +13,12 @@ import { TextPlusIcon } from './icons/TextPlusIcon';
 import { TextMinusIcon } from './icons/TextMinusIcon';
 import { TextReplaceIcon } from './icons/TextReplaceIcon';
 import { DocumentTextIcon } from './icons/DocumentTextIcon';
+import { AlertTriangleIcon } from './icons/AlertTriangleIcon';
+import { CalendarDaysIcon } from './icons/CalendarDaysIcon';
+import { ClipboardDocumentListCheckIcon } from './icons/ClipboardDocumentListCheckIcon';
+import { SparklesIcon } from './icons/SparklesIcon';
+import { generateSingleRFIDraft } from '../services/geminiService';
+import { Spinner } from './Spinner';
 
 interface ChangeListItemProps {
     change: AppChangeLogItem;
@@ -22,10 +29,18 @@ interface ChangeListItemProps {
     onHover: (change: AppChangeLogItem | null) => void;
     onStartLocating: (id: number) => void;
     onViewSource: (change: AppChangeLogItem) => void;
+    onUpdateRFIDraft?: (id: number, draft: string) => void;
 }
 
-// FIX: Cast motion component to `any` to resolve TypeScript typing issues with framer-motion props.
 const MotionDiv = motion.div as any;
+
+const riskStyles: Record<RiskLevel, { bg: string, text: string, label: string }> = {
+    [RiskLevel.CRITICAL]: { bg: 'bg-red-600', text: 'text-white', label: 'CRITICAL RISK' },
+    [RiskLevel.HIGH]: { bg: 'bg-orange-500', text: 'text-white', label: 'HIGH RISK' },
+    [RiskLevel.MEDIUM]: { bg: 'bg-amber-400', text: 'text-amber-900', label: 'MEDIUM RISK' },
+    [RiskLevel.LOW]: { bg: 'bg-emerald-500', text: 'text-white', label: 'LOW RISK' },
+    [RiskLevel.INFO]: { bg: 'bg-slate-500', text: 'text-white', label: 'INFORMATIONAL' },
+};
 
 const changeTypeIcons: Record<ChangeType, { icon: React.ElementType, color: string }> = {
     [ChangeType.PAGE_ADD]: { icon: DocumentAddIcon, color: 'text-blue-600' },
@@ -37,159 +52,135 @@ const changeTypeIcons: Record<ChangeType, { icon: React.ElementType, color: stri
     [ChangeType.GENERAL_NOTE]: { icon: DocumentTextIcon, color: 'text-slate-500' },
 };
 
-const getStatusStyles = (status: ChangeStatus, isUnlocated: boolean) => {
-    if (isUnlocated) {
-         return {
-            borderColor: 'border-brand-500',
-            bg: 'bg-white',
-        };
-    }
-    switch (status) {
-        case ChangeStatus.APPROVED:
-            return {
-                borderColor: 'border-emerald-500',
-                bg: 'bg-emerald-50/60',
-            };
-        case ChangeStatus.REJECTED:
-            return {
-                borderColor: 'border-red-500',
-                bg: 'bg-red-50/60',
-            };
-        case ChangeStatus.PENDING:
-        default:
-            return {
-                borderColor: 'border-amber-500',
-                bg: 'bg-white',
-            };
-    }
-};
-
-const formatChangeType = (type: ChangeType) => {
-    return type.replace(/_/g, ' ');
-};
-
-export const ChangeListItem = ({ change, isSelected, onSelect, onStatusChange, onEditRequest, onHover, onStartLocating, onViewSource }: ChangeListItemProps) => {
-    const isUnlocated = change.change_type.startsWith('TEXT_') && !change.original_page_number;
-    const styles = getStatusStyles(change.status, isUnlocated);
-    const containerClasses = `w-full rounded-lg border-l-4 transition-all duration-300 ${styles.borderColor} ${styles.bg} ${isSelected ? 'ring-2 ring-brand-400 shadow-lg' : 'border-gray-200 border-t border-b border-r shadow-sm hover:shadow-md'}`;
-    const hasSource = change.source_page > 0;
-    const isTextChange = change.change_type.startsWith('TEXT_');
-
-    const { icon: Icon, color } = changeTypeIcons[change.change_type];
-    const formattedType = formatChangeType(change.change_type);
-
-    const handleApprove = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onStatusChange(change.id, ChangeStatus.APPROVED);
-    };
-
-    const handleReject = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onStatusChange(change.id, ChangeStatus.REJECTED);
-    };
-
-    const handleEditClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onEditRequest(change);
-    };
+export const ChangeListItem = ({ change, isSelected, onSelect, onStatusChange, onEditRequest, onHover, onStartLocating, onViewSource, onUpdateRFIDraft }: ChangeListItemProps) => {
+    const [showRfi, setShowRfi] = useState(false);
+    const [isGeneratingRfi, setIsGeneratingRfi] = useState(false);
     
-    const handleViewSourceClick = (e: React.MouseEvent) => {
+    const isUnlocated = change.change_type.startsWith('TEXT_') && !change.original_page_number;
+    const isTextChange = change.change_type.startsWith('TEXT_');
+    const { icon: Icon, color } = changeTypeIcons[change.change_type];
+    const risk = riskStyles[change.risk_level];
+
+    const isOverdue = change.due_date && change.due_date < Date.now() && change.status === ChangeStatus.PENDING;
+    const isHighRisk = change.risk_level === RiskLevel.CRITICAL || change.risk_level === RiskLevel.HIGH;
+    const hasRfi = !!change.suggested_rfi;
+
+    const handleGenerateRfi = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        onViewSource(change);
+        if (!onUpdateRFIDraft) return;
+        
+        setIsGeneratingRfi(true);
+        try {
+            const draft = await generateSingleRFIDraft(change);
+            onUpdateRFIDraft(change.id, draft);
+            setShowRfi(true);
+        } catch (err) {
+            console.error("Failed to generate RFI:", err);
+            alert("RFI generation failed. Please try again.");
+        } finally {
+            setIsGeneratingRfi(false);
+        }
     };
+
+    const containerClasses = `group w-full rounded-xl border-l-4 transition-all duration-300 ${isSelected ? 'ring-2 ring-brand-500 shadow-xl z-10 scale-[1.02]' : 'border-gray-200 border-t border-b border-r shadow-sm hover:shadow-md'} ${change.status === ChangeStatus.APPROVED ? 'bg-emerald-50/40 border-emerald-500' : change.status === ChangeStatus.REJECTED ? 'bg-red-50/40 border-red-500' : 'bg-white border-slate-300'}`;
 
     return (
-        <div 
-            onMouseEnter={() => onHover(change)} 
-            onMouseLeave={() => onHover(null)} 
-            className={containerClasses}
-        >
-            <div onClick={() => onSelect(change.id)} className="p-3 cursor-pointer">
-                <div className="flex justify-between items-start">
-                    <div title={formattedType}>
+        <div onMouseEnter={() => onHover(change)} onMouseLeave={() => onHover(null)} className={containerClasses}>
+            <div onClick={() => onSelect(change.id)} className="p-4 cursor-pointer">
+                <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2">
                         <Icon className={`h-6 w-6 ${color}`} />
-                    </div>
-                     <div className="flex items-center space-x-1">
-                        {hasSource && (
-                            <button 
-                                onClick={handleViewSourceClick} 
-                                className="p-1 rounded-full text-gray-400 hover:bg-gray-200/50 hover:text-gray-600 transition-colors" 
-                                aria-label="View Source Instruction"
-                                title="View source instruction in addendum"
-                            >
-                                <DocumentSearchIcon className="h-5 w-5"/>
-                            </button>
+                        <span className={`text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-full ${risk.bg} ${risk.text}`}>
+                            {risk.label}
+                        </span>
+                        {change.discipline && (
+                            <span className="text-[10px] font-bold uppercase tracking-tight px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                {change.discipline}
+                            </span>
                         )}
-                        <button 
-                            onClick={handleEditClick} 
-                            className="p-1 rounded-full text-gray-400 hover:bg-gray-200/50 hover:text-gray-600 transition-colors" 
-                            aria-label="Edit Change"
-                            title="Edit change details"
-                        >
-                            <PencilSquareIcon className="h-5 w-5"/>
-                        </button>
+                        {isOverdue && (
+                            <span className="text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 flex items-center gap-1">
+                                <AlertTriangleIcon className="h-3 w-3" /> Overdue
+                            </span>
+                        )}
+                    </div>
+                     <div className="flex items-center space-x-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                        {change.source_page > 0 && <button onClick={(e) => { e.stopPropagation(); onViewSource(change); }} className="p-1 rounded-full hover:bg-slate-200" title="Source Doc"><DocumentSearchIcon className="h-5 w-5"/></button>}
+                        <button onClick={(e) => { e.stopPropagation(); onEditRequest(change); }} className="p-1 rounded-full hover:bg-slate-200" title="Edit"><PencilSquareIcon className="h-5 w-5"/></button>
                     </div>
                 </div>
-                <p className="text-sm text-gray-800 mt-2" title={change.description}>
+
+                <p className="text-sm font-semibold text-slate-800 leading-snug">
                     {change.description}
                 </p>
-                <div className="mt-3 flex justify-between items-end">
-                     <p className="text-xs text-gray-500 truncate pr-2" title={change.location_hint}>
-                        <span className="font-semibold">{isUnlocated ? 'Location Needed' : (change.spec_section || 'Sheet')}:</span> {isUnlocated ? 'AI could not find a match' : (change.location_hint || 'N/A')}
-                    </p>
-                    
-                    {isUnlocated ? (
-                         <button
-                            onClick={(e) => { e.stopPropagation(); onStartLocating(change.id); }}
-                            className="flex-shrink-0 inline-flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-md text-white bg-brand-600 hover:bg-brand-700 transition-colors"
-                            title="Manually locate this change on the document"
-                        >
-                            <MapPinIcon className="h-4 w-4" />
-                            Locate
-                        </button>
-                    ) : (
-                        <div className="flex items-center space-x-2 flex-shrink-0">
-                            {change.status === ChangeStatus.PENDING && (
-                                <>
-                                    <button onClick={handleReject} title="Reject Change" className="px-2 py-0.5 text-xs font-semibold rounded text-red-700 bg-red-100 hover:bg-red-200 border border-red-200 transition-colors">
-                                        Reject
-                                    </button>
-                                    <button onClick={handleApprove} title="Approve Change" className="px-2 py-0.5 text-xs font-semibold rounded text-white bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 transition-colors">
-                                        Approve
-                                    </button>
-                                </>
-                            )}
-                            
-                            {change.status !== ChangeStatus.PENDING && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onStatusChange(change.id, ChangeStatus.PENDING); }}
-                                    className="px-2 py-1 text-xs font-semibold rounded bg-white/70 border border-slate-300 text-slate-600 hover:bg-white hover:text-slate-800 backdrop-blur-sm shadow-sm transition-colors"
-                                    title="Undo status change"
-                                >
-                                    Undo
-                                </button>
-                            )}
-                        </div>
-                    )}
+
+                {change.risk_rationale && isSelected && (
+                    <div className="mt-3 p-3 bg-brand-50 rounded-lg border border-brand-100 flex gap-2">
+                        <AlertTriangleIcon className="h-5 w-5 text-brand-600 flex-shrink-0" />
+                        <p className="text-xs text-brand-900 leading-relaxed italic"><span className="font-bold not-italic">AI Risk Radar:</span> {change.risk_rationale}</p>
+                    </div>
+                )}
+
+                <div className="mt-4 flex justify-between items-center">
+                     <div className="flex flex-col gap-1">
+                        <p className="text-[11px] text-slate-500 font-medium">
+                            {change.spec_section || 'Sheet'} {change.location_hint}
+                        </p>
+                        {change.due_date && (
+                             <div className={`flex items-center gap-1 text-[10px] font-bold ${isOverdue ? 'text-red-600' : 'text-slate-400'}`}>
+                                <CalendarDaysIcon className="h-3 w-3" />
+                                <span>Due: {new Date(change.due_date).toLocaleDateString()}</span>
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {hasRfi ? (
+                            <button onClick={(e) => { e.stopPropagation(); setShowRfi(!showRfi); }} className={`px-2 py-1 text-[10px] font-bold rounded uppercase tracking-wider transition-colors ${showRfi ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}>RFI Draft</button>
+                        ) : isHighRisk && (
+                            <button 
+                                onClick={handleGenerateRfi} 
+                                disabled={isGeneratingRfi}
+                                className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold rounded uppercase tracking-wider bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-sm disabled:bg-slate-400"
+                            >
+                                {isGeneratingRfi ? <Spinner colorClass="text-white h-3 w-3" /> : <SparklesIcon className="h-3 w-3" />}
+                                {isGeneratingRfi ? 'Generating...' : 'Generate RFI'}
+                            </button>
+                        )}
+                        {isUnlocated ? (
+                            <button onClick={(e) => { e.stopPropagation(); onStartLocating(change.id); }} className="px-3 py-1 text-[10px] font-bold rounded-lg uppercase tracking-wider bg-brand-600 text-white hover:bg-brand-700">Locate Match</button>
+                        ) : (
+                            <div className="flex gap-1.5">
+                                <button onClick={(e) => { e.stopPropagation(); onStatusChange(change.id, ChangeStatus.REJECTED); }} className={`p-1 rounded ${change.status === ChangeStatus.REJECTED ? 'bg-red-600 text-white' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}>Reject</button>
+                                <button onClick={(e) => { e.stopPropagation(); onStatusChange(change.id, ChangeStatus.APPROVED); }} className={`p-1 px-3 rounded text-[10px] font-bold uppercase tracking-wider ${change.status === ChangeStatus.APPROVED ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'}`}>Approve</button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
+
             <AnimatePresence>
-                {isSelected && isTextChange && (
-                    <MotionDiv
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2, ease: 'easeInOut' }}
-                        className="overflow-hidden"
-                        onClick={(e: React.MouseEvent) => e.stopPropagation()} // Prevent click from bubbling up and closing the view
-                    >
-                        <TextDiffViewer
-                            oldText={change.exact_text_to_find || ''}
-                            newText={change.new_text_to_insert || ''}
-                        />
+                {isSelected && showRfi && change.suggested_rfi && (
+                    <MotionDiv initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-indigo-50 border-t border-indigo-100 p-4">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">AI Generated RFI Draft</span>
+                            <button onClick={() => { navigator.clipboard.writeText(change.suggested_rfi!); }} className="text-[10px] font-bold text-indigo-600 hover:underline">Copy Draft</button>
+                        </div>
+                        <p className="text-xs text-indigo-900 font-mono leading-relaxed whitespace-pre-wrap">{change.suggested_rfi}</p>
+                    </MotionDiv>
+                )}
+                {isSelected && isTextChange && !showRfi && (
+                    <MotionDiv initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                        <TextDiffViewer oldText={change.exact_text_to_find || ''} newText={change.new_text_to_insert || ''} />
                     </MotionDiv>
                 )}
             </AnimatePresence>
+            
+            {change.audit_trail.length > 0 && isSelected && (
+                <div className="px-4 pb-3 border-t border-slate-100 pt-2 flex items-center justify-between opacity-50">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">Vetted by {change.audit_trail[change.audit_trail.length-1].userName}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">{new Date(change.audit_trail[change.audit_trail.length-1].timestamp).toLocaleDateString()}</span>
+                </div>
+            )}
         </div>
     );
 };

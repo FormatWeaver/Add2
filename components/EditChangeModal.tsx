@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AppChangeLogItem, ChangeType } from '../types';
 import { CloseIcon } from './icons/CloseIcon';
@@ -21,10 +22,16 @@ const EditChangeModal = ({ change, onSave, onClose }: EditChangeModalProps) => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
+        if (name === 'due_date') {
+            setEditedChange(prev => ({ 
+                ...prev, 
+                due_date: value ? new Date(value).getTime() : undefined 
+            }));
+            return;
+        }
         setEditedChange(prev => ({ ...prev, [name]: value }));
     };
 
-    // Prevent modal from closing when clicking inside
     const handleDialogClick = (e: React.MouseEvent) => {
         e.stopPropagation();
     };
@@ -55,7 +62,19 @@ const EditChangeModal = ({ change, onSave, onClose }: EditChangeModalProps) => {
                             name="description"
                             value={editedChange.description}
                             onChange={handleChange}
-                            rows={3}
+                            rows={2}
+                            className="w-full text-sm p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition"
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="due_date" className="block text-sm font-semibold text-slate-700 mb-1">Due Date</label>
+                        <input
+                            id="due_date"
+                            name="due_date"
+                            type="date"
+                            value={editedChange.due_date ? new Date(editedChange.due_date).toISOString().split('T')[0] : ''}
+                            onChange={handleChange}
                             className="w-full text-sm p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition"
                         />
                     </div>

@@ -1,7 +1,9 @@
+
 export * from './AlertTriangleIcon';
 export * from './ArrowPathIcon';
 export * from './ArrowsRightLeftIcon';
 export * from './ArrowTopRightOnSquareIcon';
+export * from './BellIcon';
 export * from './BotMessageSquareIcon';
 export * from './CalendarDaysIcon';
 export * from './CheckCircleIcon';
@@ -59,3 +61,5 @@ export * from './WrenchScrewdriverIcon';
 export * from './XCircleIcon';
 export * from './ZoomInIcon';
 export * from './ZoomOutIcon';
+export * from './BuildingOfficeIcon';
+export * from './BriefcaseIcon';

@@ -1,8 +1,6 @@
 
-
-
 import React, { useState, useEffect } from 'react';
-import { AppChangeLogItem, ChangeType } from '../types';
+import { AppChangeLogItem, ChangeType, RiskLevel } from '../types';
 import { CloseIcon } from './icons/CloseIcon';
 
 interface AddChangeModalProps {
@@ -18,6 +16,8 @@ const AddChangeModal = ({ onCreate, onClose, defaultType }: AddChangeModalProps)
         location_hint: '',
         source_page: 1,
         source_original_document: defaultType,
+        risk_level: RiskLevel.LOW,
+        audit_trail: []
     });
 
     const handleCreate = () => {
@@ -30,8 +30,16 @@ const AddChangeModal = ({ onCreate, onClose, defaultType }: AddChangeModalProps)
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        const { name, value, type } = e.target;
+        const { name, value } = e.target;
         const isNumeric = ['source_page', 'original_page_number', 'target_page_number', 'insert_after_original_page_number'].includes(name);
+
+        if (name === 'due_date') {
+            setNewChange(prev => ({ 
+                ...prev, 
+                due_date: value ? new Date(value).getTime() : undefined 
+            }));
+            return;
+        }
 
         setNewChange(prev => ({ 
             ...prev, 
@@ -40,13 +48,9 @@ const AddChangeModal = ({ onCreate, onClose, defaultType }: AddChangeModalProps)
     };
     
     useEffect(() => {
-        // Reset fields when change type changes to avoid keeping irrelevant data
         setNewChange(prev => ({
+            ...prev,
             change_type: prev.change_type,
-            description: prev.description,
-            source_page: prev.source_page,
-            location_hint: prev.location_hint,
-            source_original_document: prev.source_original_document
         }));
     }, [newChange.change_type]);
 
@@ -123,7 +127,17 @@ const AddChangeModal = ({ onCreate, onClose, defaultType }: AddChangeModalProps)
                     </div>
 
                     <TextareaField label="Description (Required)" name="description" value={newChange.description} onChange={handleChange} rows={2}/>
-                    <InputField label="Location Hint (Sheet or Spec Section)" name="location_hint" value={newChange.location_hint} onChange={handleChange} />
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <InputField label="Location Hint" name="location_hint" value={newChange.location_hint} onChange={handleChange} />
+                        <InputField 
+                            label="Due Date" 
+                            name="due_date" 
+                            type="date" 
+                            value={newChange.due_date ? new Date(newChange.due_date).toISOString().split('T')[0] : ''} 
+                            onChange={handleChange} 
+                        />
+                    </div>
                     
                     {renderFieldsForType()}
                 </div>
@@ -167,6 +181,5 @@ const TextareaField = ({ label, name, value, onChange, rows = 3 }: {label:string
         />
     </div>
 );
-
 
 export default AddChangeModal;

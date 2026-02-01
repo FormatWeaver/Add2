@@ -1,18 +1,9 @@
 
 import { supabase } from './supabaseClient';
-import { AppState, ProjectFile } from '../types';
+import { AppState, ProjectFile, User } from '../types';
 
-/**
- * CONFIGURATION:
- * Ensure you have a bucket named 'project-files' in your Supabase Storage.
- * It should be set to 'Public' for this application to work correctly.
- */
 const BUCKET_NAME = 'project-files';
 
-/**
- * Fetches all projects for the current user.
- * FAIL-SAFE: If cloud is unreachable (TypeError: Failed to fetch), returns an empty map silently.
- */
 export const fetchProjects = async (userId: string): Promise<Map<string, AppState>> => {
     try {
         const { data, error } = await supabase
@@ -20,11 +11,7 @@ export const fetchProjects = async (userId: string): Promise<Map<string, AppStat
             .select('id, app_state')
             .eq('user_id', userId);
 
-        // If the table doesn't exist or request fails, treat as "no projects"
         if (error || !data) {
-            if (error?.message?.includes('relation "projects" does not exist')) {
-                console.warn("Supabase: 'projects' table not found. Please run the SQL setup script.");
-            }
             return new Map();
         }
 
@@ -35,14 +22,97 @@ export const fetchProjects = async (userId: string): Promise<Map<string, AppStat
         }
         return projectsMap;
     } catch (err: any) {
-        console.debug("Cloud sync skipped:", err.message);
         return new Map();
     }
 };
 
+export const fetchAllProjectsGlobal = async (): Promise<Map<string, AppState>> => {
+    try {
+        const { data, error } = await supabase
+            .from('projects')
+            .select('id, app_state, user_id, project_name');
+
+        if (error || !data) return new Map();
+
+        const projectsMap = new Map<string, AppState>();
+        for (const record of data) {
+            const projectState = record.app_state as any as AppState;
+            projectsMap.set(record.id, { ...projectState, projectId: record.id });
+        }
+        return projectsMap;
+    } catch (err) {
+        return new Map();
+    }
+}
+
 /**
- * Saves project state. Fails silently to prevent interrupting user work.
+ * FIXED: Admin method to fetch ALL users.
+ * Optimized to bypass potential RLS issues by looking at unique user_ids 
+ * in the projects table and combining them with the profiles table.
  */
+export const fetchAllUsersGlobal = async (): Promise<User[]> => {
+    try {
+        const uniqueUsers = new Map<string, User>();
+
+        // 1. Get from profiles
+        const { data: profiles } = await supabase.from('profiles').select('*');
+        if (profiles) {
+            profiles.forEach((d: any) => {
+                uniqueUsers.set(d.id, {
+                    id: d.id,
+                    email: d.email,
+                    name: d.name || d.email.split('@')[0],
+                    role: d.role,
+                    efficiencyScore: d.efficiency_score,
+                    platformRank: d.platform_rank,
+                    avatarUrl: d.avatar_url,
+                    jobTitle: d.job_title,
+                    company: d.company
+                });
+            });
+        }
+
+        // 2. Discover from projects table (look for users who might not have a profile record yet)
+        const { data: projects } = await supabase.from('projects').select('user_id, app_state');
+        if (projects) {
+            projects.forEach(p => {
+                const state = p.app_state as any as AppState;
+                if (state.currentUser && !uniqueUsers.has(state.currentUser.id)) {
+                    uniqueUsers.set(state.currentUser.id, state.currentUser);
+                } else if (p.user_id && !uniqueUsers.has(p.user_id)) {
+                    // Create a placeholder if we only have the ID
+                    uniqueUsers.set(p.user_id, {
+                        id: p.user_id,
+                        email: 'discovered-user@platform.local',
+                        name: 'Discovered User',
+                        role: 'user'
+                    });
+                }
+            });
+        }
+
+        return Array.from(uniqueUsers.values());
+    } catch (err) {
+        console.error("Platform discovery failed:", err);
+        return [];
+    }
+};
+
+export const updateUserRank = async (userId: string, score: number, rank: string): Promise<void> => {
+    try {
+        await supabase
+            .from('profiles')
+            .upsert({
+                id: userId,
+                efficiency_score: score,
+                platform_rank: rank,
+                updated_at: new Date().toISOString()
+            });
+    } catch (err) {
+        console.error("Failed to update user rank:", err);
+    }
+};
+
 export const saveProject = async (projectState: AppState): Promise<void> => {
     if (!projectState.currentUser || projectState.currentUser.id.startsWith('guest-')) {
         return;
@@ -65,18 +135,11 @@ export const saveProject = async (projectState: AppState): Promise<void> => {
 
 export const uploadFile = async (userId: string, projectId: string, file: File): Promise<ProjectFile> => {
     const path = `${userId}/${projectId}/${file.name}`;
-    
     const { error } = await supabase.storage
         .from(BUCKET_NAME)
         .upload(path, file, { upsert: true });
     
-    if (error) {
-        if (error.message.includes('Bucket not found')) {
-            throw new Error(`STORAGE_CONFIG_ERROR: The bucket '${BUCKET_NAME}' does not exist in your Supabase project. 1) Go to Supabase Dashboard -> Storage. 2) Create a NEW bucket named '${BUCKET_NAME}'. 3) Set it to 'Public'.`);
-        }
-        throw new Error(`Upload Failed: ${error.message}`);
-    }
-    
+    if (error) throw new Error(`Upload Failed: ${error.message}`);
     return { name: file.name, type: file.type, size: file.size, path: path };
 };
 

@@ -1,12 +1,11 @@
 
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { drawAnnotations, drawSpotlightAnnotation } from '../services/pdfAnnotationService';
 import { CloseIcon } from './icons/CloseIcon';
 import { ZoomInIcon } from './icons/ZoomInIcon';
 import { ZoomOutIcon } from './icons/ZoomOutIcon';
-import { AppChangeLogItem, ChangeType, ConformedPageInfo, SelectionRect, ChangeStatus } from '../types';
+import { AppChangeLogItem, ChangeType, ConformedPageInfo, SelectionRect, ChangeStatus, RiskLevel } from '../types';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
 import { Spinner } from './Spinner';
@@ -145,10 +144,13 @@ const PdfModalViewer = (props: PdfModalViewerProps) => {
                 if (props.mode === 'view' && props.isConformed) {
                     await drawAnnotations(ctx, page, viewport, props.pageInfo.approvedTextChanges);
                 } else if (props.mode === 'source' && props.textToHighlight) {
+                     // Comment: Added risk_level and audit_trail to satisfy AppChangeLogItem interface requirements in mock object fix.
                      const mockChangeForHighlighting: AppChangeLogItem = {
                         id: -1, status: ChangeStatus.PENDING, addendum_name: '', change_type: ChangeType.GENERAL_NOTE, 
                         description: '', source_page: props.pageNumber, location_hint: props.textToHighlight,
                         source_original_document: props.sourceOriginalDocument,
+                        risk_level: RiskLevel.INFO,
+                        audit_trail: []
                     };
                     await drawSpotlightAnnotation(ctx, page, viewport, mockChangeForHighlighting);
                 }

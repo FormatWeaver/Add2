@@ -7,22 +7,19 @@ import { PdfFileIcon } from './icons/PdfFileIcon';
 import { CloseIcon } from './icons/CloseIcon';
 import { DocumentPlusIcon } from './icons/DocumentPlusIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
-// FIX: Replace missing FileMetadata type with ProjectFile
 import { AppState, AppPhase, ProjectFile } from '../types';
 import { ArrowPathIcon } from './icons/ArrowPathIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { Spinner } from './Spinner';
 import { PlusIcon } from './icons/PlusIcon';
+import { ArrowRightIcon } from './icons/ArrowRightIcon';
+// Comment: Added ShieldCheckIcon import to fix "Cannot find name 'ShieldCheckIcon'" error on line 473.
+import { ShieldCheckIcon } from './icons/ShieldCheckIcon';
 
-// FIX: Cast motion components to `any` to resolve TypeScript typing issues with framer-motion props.
 const MotionDiv = motion.div as any;
-// FIX: Cast motion components to `any` to resolve TypeScript typing issues with framer-motion props.
 const MotionImg = motion.img as any;
 
-// --- Re-designed FileCard for Addenda View ---
-// FIX: Replace missing FileMetadata type with ProjectFile
-// Comment: Added key to props type to fix line 429 error.
 interface FileCardProps {
     file: File | ProjectFile | null;
     onRemove?: (e: React.MouseEvent) => void;
@@ -36,18 +33,16 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRemove, isBlueprintReady })
     const [progress, setProgress] = useState(0);
     const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
 
-
     useEffect(() => {
         if (!file || !(file instanceof File) || file.type !== 'application/pdf') {
             setIsLoading(false);
             setProgress(100);
-            setThumbnailUrl(null); // Clear previous thumbnail if file changes to non-pdf
+            setThumbnailUrl(null);
             return;
         }
 
         let isCancelled = false;
 
-        // Immediately cancel any previous render task.
         if (renderTaskRef.current) {
             renderTaskRef.current.cancel();
             renderTaskRef.current = null;
@@ -55,7 +50,7 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRemove, isBlueprintReady })
         
         setIsLoading(true);
         setProgress(0);
-        setThumbnailUrl(null); // Clear previous thumbnail
+        setThumbnailUrl(null);
 
         const generateThumbnail = async () => {
             let pdf: pdfjsLib.PDFDocumentProxy | undefined;
@@ -83,7 +78,6 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRemove, isBlueprintReady })
                     return;
                 }
 
-                // FIX: The `page.render` method in `pdfjs-dist` requires the `canvas` property in its parameters object. Added the `canvas` object to the render context to resolve the TypeScript error.
                 renderTaskRef.current = page.render({ canvas, canvasContext, viewport });
                 await renderTaskRef.current.promise;
                 renderTaskRef.current = null;
@@ -99,9 +93,9 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRemove, isBlueprintReady })
             } finally {
                 if (!isCancelled) {
                     setIsLoading(false);
-                    setProgress(100); // Ensure progress is full on completion/error
+                    setProgress(100);
                 }
-                pdf?.destroy().catch(() => {}); // Clean up the document
+                pdf?.destroy().catch(() => {});
             }
         };
 
@@ -191,8 +185,6 @@ const FileCard: React.FC<FileCardProps> = ({ file, onRemove, isBlueprintReady })
     );
 };
 
-// --- Child component for Addenda View ---
-// FIX: Replace missing FileMetadata type with ProjectFile
 const BlueprintFileChip = ({ file }: { file: File | ProjectFile | null }) => {
     if (!file) return null;
     return (
@@ -203,8 +195,6 @@ const BlueprintFileChip = ({ file }: { file: File | ProjectFile | null }) => {
     );
 };
 
-
-// --- The Main Uploader Component ---
 interface DocumentUploaderProps {
   appState: AppState;
   stagedFiles: { baseDrawings: File | null; baseSpecs: File | null; };
@@ -243,7 +233,7 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => {
     );
 };
 
-const Dropzone = ({ getRootProps, getInputProps, isDragActive, title, description, icon: Icon }: any) => (
+const Dropzone = ({ getRootProps, getInputProps, isDragActive, title, description, icon: Icon, isBatch }: any) => (
     <MotionDiv
         layout
         initial={{ opacity: 0, scale: 0.95 }}
@@ -259,11 +249,15 @@ const Dropzone = ({ getRootProps, getInputProps, isDragActive, title, descriptio
         <MotionDiv
             animate={{ scale: isDragActive ? 1.15 : 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+            className="relative"
         >
-            <Icon className={`h-10 w-10 transition-colors duration-300 ${isDragActive ? 'text-brand-600' : 'text-slate-500'}`} />
+            <Icon className={`h-12 w-12 transition-colors duration-300 ${isDragActive ? 'text-brand-600' : 'text-slate-500'}`} />
+            {isBatch && (
+                <div className="absolute -top-1 -right-1 bg-brand-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest shadow-lg">Batch</div>
+            )}
         </MotionDiv>
-        <p className="font-semibold text-slate-700 mt-4 text-center">{title}</p>
-        <p className="text-sm text-slate-500 mt-1 text-center">{description}</p>
+        <p className="font-bold text-slate-800 mt-4 text-center">{title}</p>
+        <p className="text-sm text-slate-500 mt-1 text-center max-w-xs">{description}</p>
     </MotionDiv>
 );
 
@@ -274,7 +268,6 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
     const [projectName, setProjectName] = useState('');
     
     useEffect(() => {
-        // Auto-populate project name from the first uploaded file
         if (!projectName && (stagedBaseSpecs || stagedBaseDrawings)) {
             const file = stagedBaseSpecs || stagedBaseDrawings;
             const derivedName = file?.name
@@ -322,20 +315,20 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
 
     const setupView = (
         <MotionDiv key="setup" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.5, ease: 'easeInOut' }} className="w-full max-w-5xl pb-16">
-            <div className="text-center mb-8">
-                <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Create a New Project</h1>
-                <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-600">Give your project a name, then upload the original documents to create a Blueprint for analysis.</p>
+            <div className="text-center mb-12">
+                <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">Create a New Project</h1>
+                <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-500">Transform your base tender documents into an intelligent AI blueprint.</p>
             </div>
 
-            <div className="w-full max-w-2xl mx-auto mb-8">
-                <label htmlFor="projectName" className="block text-sm font-bold text-slate-700 mb-2">Project Name</label>
+            <div className="w-full max-w-2xl mx-auto mb-12">
+                <label htmlFor="projectName" className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Project Title</label>
                 <input 
                     type="text" 
                     id="projectName"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
                     placeholder="e.g., Downtown Hospital Expansion"
-                    className="w-full px-4 py-3 text-lg border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition"
+                    className="w-full px-6 py-4 text-xl font-bold border-2 border-slate-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all outline-none"
                 />
             </div>
             
@@ -345,8 +338,8 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
                         stagedBaseSpecs,
                         () => setStagedBaseSpecs(null),
                         { getRootProps: getSpecsRootProps, getInputProps: getSpecsInputProps, isDragActive: isSpecsDragActive },
-                        "Upload Original Specs",
-                        "(e.g., Project Manual)"
+                        "Original Specs",
+                        "Drop your Project Manual or Specifications (PDF)"
                     )}
                 </AnimatePresence>
                  <div className="hidden md:flex justify-center items-center pt-24">
@@ -357,15 +350,15 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
                         stagedBaseDrawings,
                         () => setStagedBaseDrawings(null),
                         { getRootProps: getDrawingsRootProps, getInputProps: getDrawingsInputProps, isDragActive: isDrawingsDragActive },
-                        "Upload Original Drawings",
-                        "(e.g., Tender Set)"
+                        "Original Drawings",
+                        "Drop your Tender Set or Drawings (PDF)"
                     )}
                 </AnimatePresence>
             </div>
             
-            <div className="mt-10 text-center flex flex-col items-center gap-4">
-                 <button onClick={() => onStartIndexing(stagedBaseDrawings, stagedBaseSpecs, projectName)} disabled={(!stagedBaseDrawings && !stagedBaseSpecs) || !projectName.trim()} className="flex items-center gap-3 px-8 py-4 bg-brand-600 text-white font-semibold rounded-lg shadow-lg hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 disabled:bg-slate-400 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-200 text-lg hover:shadow-brand-300/50">
-                    <SparklesIcon className="h-6 w-6" /> Create Project Blueprint
+            <div className="mt-12 text-center flex flex-col items-center gap-4">
+                 <button onClick={() => onStartIndexing(stagedBaseDrawings, stagedBaseSpecs, projectName)} disabled={(!stagedBaseDrawings && !stagedBaseSpecs) || !projectName.trim()} className="flex items-center gap-3 px-10 py-5 bg-brand-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-brand-500/20 hover:bg-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-500/50 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-300 text-lg hover:-translate-y-1 active:translate-y-0">
+                    <SparklesIcon className="h-6 w-6" /> Index Blueprint
                   </button>
             </div>
         </MotionDiv>
@@ -373,23 +366,25 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
 
     const addendaView = (
         <MotionDiv key="addenda" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.5, ease: 'easeInOut' }} className="w-full max-w-5xl pb-16">
-            <div className="text-center mb-8">
-                <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Blueprint Ready for "{appState.projectName}"</h1>
-                <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-600">Upload one or more addenda to get a complete, conformed document set.</p>
+            <div className="text-center mb-10">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
+                    <CheckCircleIcon className="h-4 w-4" /> Blueprint Synchronized
+                </div>
+                <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">Addenda Analysis</h1>
+                <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-500">Upload any addenda to surgically identify changes, or proceed to index just the base set.</p>
             </div>
             
-            <div className="flex justify-center items-center flex-wrap gap-3 sm:gap-4 mb-8">
-                <span className="text-sm font-semibold text-slate-500">Project Blueprint:</span>
+            <div className="flex justify-center items-center flex-wrap gap-3 sm:gap-4 mb-10">
                 <AnimatePresence>
                     {hasSpecs && <BlueprintFileChip file={stagedFiles.baseSpecs || appState.baseSpecs} />}
                     {hasDrawings && <BlueprintFileChip file={stagedFiles.baseDrawings || appState.baseDrawings} />}
                 </AnimatePresence>
                 <button
                     onClick={onReset}
-                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors"
-                    title="Reset the project and upload new blueprint files"
+                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl text-slate-500 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-all hover:text-red-600"
+                    title="Change base documents"
                 >
-                    <ArrowPathIcon className="h-4 w-4" /> Reset Project
+                    <ArrowPathIcon className="h-4 w-4" /> Switch Files
                 </button>
             </div>
 
@@ -420,8 +415,9 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
                                 getRootProps={getAddendumRootProps}
                                 getInputProps={getAddendumInputProps}
                                 isDragActive={isAddendumDragActive}
-                                title={stagedAddenda.length > 1 ? "Upload More Addenda" : "Upload Addenda for Analysis"}
-                                description={stagedAddenda.length > 1 ? "They will be added to the tray below" : "Drop one or more PDF files here"}
+                                isBatch={stagedAddenda.length > 1}
+                                title={stagedAddenda.length > 1 ? `Ready to Merge ${stagedAddenda.length} Files` : "Upload Addenda"}
+                                description={stagedAddenda.length > 1 ? "Drop more files to add to this batch" : "Drop one or more addenda PDFs here to perform multi-document reasoning"}
                                 icon={DocumentPlusIcon}
                             />
                         </MotionDiv>
@@ -430,8 +426,11 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
             </div>
 
             {stagedAddenda.length > 1 && (
-                <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 w-full">
-                    <h3 className="font-semibold text-slate-700 text-center mb-4 text-lg">Ready for Analysis ({stagedAddenda.length} files)</h3>
+                <MotionDiv initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-12 w-full">
+                    <div className="flex items-center justify-between mb-6 px-2">
+                        <h3 className="font-black text-slate-800 uppercase tracking-widest text-xs">Staged for Integration ({stagedAddenda.length})</h3>
+                        <button onClick={() => setStagedAddenda([])} className="text-xs font-bold text-slate-400 hover:text-red-500">Clear Batch</button>
+                    </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
                         <AnimatePresence>
                             {stagedAddenda.map(file => (
@@ -442,22 +441,40 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
                 </MotionDiv>
             )}
 
-            <div className="mt-10 text-center flex flex-col items-center gap-4">
-                 <button onClick={() => onAnalyzeAddenda(stagedAddenda)} disabled={stagedAddenda.length === 0} className="flex items-center gap-3 px-8 py-4 bg-brand-600 text-white font-semibold rounded-lg shadow-lg hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 disabled:bg-slate-400 disabled:cursor-not-allowed disabled:shadow-none transition-all duration-200 text-lg hover:shadow-brand-300/50">
-                    <SparklesIcon className="h-6 w-6" /> Analyze {stagedAddenda.length > 0 ? `${stagedAddenda.length} Addenda` : 'Addenda'}
-                  </button>
+            <div className="mt-12 text-center flex flex-col sm:flex-row items-center justify-center gap-6">
+                {stagedAddenda.length === 0 ? (
+                    <div className="flex flex-col items-center gap-4">
+                        <button 
+                            onClick={() => onAnalyzeAddenda([])} 
+                            className="flex items-center gap-3 px-10 py-5 bg-slate-900 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl hover:bg-slate-800 transition-all text-lg group"
+                        >
+                            Review Base Set Only <ArrowRightIcon className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Proceeding without Addenda</p>
+                    </div>
+                ) : (
+                    <button 
+                        onClick={() => onAnalyzeAddenda(stagedAddenda)} 
+                        className="flex items-center gap-3 px-12 py-6 bg-brand-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-brand-500/20 hover:bg-brand-700 transition-all text-lg hover:-translate-y-1 active:translate-y-0"
+                    >
+                        <SparklesIcon className="h-6 w-6" /> Analyze {stagedAddenda.length} Addenda
+                    </button>
+                )}
             </div>
         </MotionDiv>
     );
 
     return (
-        <div className="w-full min-h-full flex flex-col items-center justify-start py-8 px-4 bg-white overflow-y-auto">
+        <div className="w-full min-h-full flex flex-col items-center justify-start py-12 px-6 bg-white overflow-y-auto">
             <StepIndicator currentStep={isProjectSetup ? 1 : 2} />
              <AnimatePresence mode="wait">
                 {isProjectSetup && setupView}
                 {isAddendaUpload && addendaView}
              </AnimatePresence>
-             <p className="mt-auto pt-8 text-sm text-slate-500">We take data security seriously. Your files are encrypted and confidential.</p>
+             <div className="mt-auto pt-16 flex items-center gap-6 opacity-40">
+                <div className="flex items-center gap-2"><ShieldCheckIcon className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-widest">Stateless Processing</span></div>
+                <div className="flex items-center gap-2"><CheckCircleIcon className="h-4 w-4" /><span className="text-[10px] font-black uppercase tracking-widest">FIPS 140-2 Encrypted</span></div>
+             </div>
         </div>
     );
 }

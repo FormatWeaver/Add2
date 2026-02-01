@@ -15,7 +15,6 @@ const statusNames = {
     'ALL': 'All'
 };
 
-// Comment: Added key to FilterButtonProps to fix line 167 error.
 interface FilterButtonProps {
     status: 'ALL' | ChangeStatus;
     current: 'ALL' | ChangeStatus;
@@ -146,6 +145,10 @@ const ChangeListPanel = (props: ChangeListPanelProps) => {
         setChangeLog(prev => prev.map(c => c.id === id ? { ...c, status } : c));
     };
 
+    const handleUpdateRFIDraft = (id: number, draft: string) => {
+        setChangeLog(prev => prev.map(c => c.id === id ? { ...c, suggested_rfi: draft } : c));
+    };
+
     const handleBulkStatusChange = (ids: number[], status: ChangeStatus) => {
         const idSet = new Set(ids);
         setChangeLog(prev => prev.map(c => idSet.has(c.id) ? { ...c, status } : c));
@@ -195,7 +198,7 @@ const ChangeListPanel = (props: ChangeListPanelProps) => {
                     {groupBy === 'none' ? (
                         filteredChangeLog.map(change => (
                             <MotionDiv key={change.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.15 } }} data-change-id={change.id}>
-                                <ChangeListItem change={change} isSelected={selectedChangeId === change.id} onSelect={onSelectChange} onStatusChange={handleStatusChange} onEditRequest={onEditRequest} onHover={onSetHoveredChange} onStartLocating={onStartLocating} onViewSource={onViewSource} />
+                                <ChangeListItem change={change} isSelected={selectedChangeId === change.id} onSelect={onSelectChange} onStatusChange={handleStatusChange} onUpdateRFIDraft={handleUpdateRFIDraft} onEditRequest={onEditRequest} onHover={onSetHoveredChange} onStartLocating={onStartLocating} onViewSource={onViewSource} />
                             </MotionDiv>
                         ))
                     ) : (
@@ -213,7 +216,7 @@ const ChangeListPanel = (props: ChangeListPanelProps) => {
                                     <div className="border-t border-gray-200/80 p-2 space-y-2">
                                         {changesInGroup.map(change => (
                                              <div key={change.id} data-change-id={change.id}>
-                                                <ChangeListItem change={change} isSelected={selectedChangeId === change.id} onSelect={onSelectChange} onStatusChange={handleStatusChange} onEditRequest={onEditRequest} onHover={onSetHoveredChange} onStartLocating={onStartLocating} onViewSource={onViewSource} />
+                                                <ChangeListItem change={change} isSelected={selectedChangeId === change.id} onSelect={onSelectChange} onStatusChange={handleStatusChange} onUpdateRFIDraft={handleUpdateRFIDraft} onEditRequest={onEditRequest} onHover={onSetHoveredChange} onStartLocating={onStartLocating} onViewSource={onViewSource} />
                                              </div>
                                         ))}
                                     </div>
