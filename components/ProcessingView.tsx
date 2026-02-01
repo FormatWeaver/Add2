@@ -56,13 +56,11 @@ export default function ProcessingView({ headline, subline, showDetails = true, 
   const [progress, setProgress] = useState(0);
   const [completedChecks, setCompletedChecks] = useState<number>(0);
   const [showFinalizingMessage, setShowFinalizingMessage] = useState(false);
-  const [isStuckWarning, setIsStuckWarning] = useState(false);
 
   useEffect(() => {
     setCompletedChecks(0);
     setProgress(0);
     setShowFinalizingMessage(false);
-    setIsStuckWarning(false);
 
     if (!showDetails) return;
 
@@ -83,15 +81,10 @@ export default function ProcessingView({ headline, subline, showDetails = true, 
         setShowFinalizingMessage(true);
     }, (items.length * checkInterval) + 300);
     
-    const stuckTimer = setTimeout(() => {
-        setIsStuckWarning(true);
-    }, 15000);
-
     return () => {
       clearTimeout(progressTimer);
       clearInterval(checkTimer);
       clearTimeout(finalizingTimer);
-      clearTimeout(stuckTimer);
     };
   }, [showDetails, items, headline]);
 
@@ -210,21 +203,7 @@ export default function ProcessingView({ headline, subline, showDetails = true, 
 
                          <div className="mt-4 text-center h-20">
                             <AnimatePresence mode="wait">
-                                {isStuckWarning ? (
-                                    <MotionDiv key="stuck" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-2">
-                                        <p className="font-bold text-amber-600 text-sm">
-                                            Taking longer than expected... Check your Supabase configuration.
-                                        </p>
-                                        {onForceReset && (
-                                            <button 
-                                                onClick={onForceReset}
-                                                className="px-4 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors"
-                                            >
-                                                Escape & Start Over
-                                            </button>
-                                        )}
-                                    </MotionDiv>
-                                ) : showFinalizingMessage ? (
+                                {showFinalizingMessage && (
                                     <MotionP 
                                         key="finalizing"
                                         initial={{ opacity: 0 }} 
@@ -233,7 +212,7 @@ export default function ProcessingView({ headline, subline, showDetails = true, 
                                     >
                                         Finalizing results...
                                     </MotionP>
-                                ) : null}
+                                )}
                             </AnimatePresence>
                         </div>
                     </div>

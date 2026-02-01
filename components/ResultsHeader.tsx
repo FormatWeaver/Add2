@@ -4,7 +4,7 @@ import { AppChangeLogItem, ChangeStatus, ConformingPlan, QAndAItem, ProjectFile 
 import { exportChangeLogAsPdf, exportConformedDocumentAsPdf, exportComparisonDocumentAsPdf, exportQandAAsPdf } from '../services/pdfGenerator';
 import { DropdownButton } from './DropdownButton';
 import { Spinner } from './Spinner';
-import { ReviewAndApproveIcon, ArrowPathIcon, DocumentChartBarIcon, ArrowsRightLeftIcon, DocumentArrowDownIcon, WrenchScrewdriverIcon, CurrencyDollarIcon, ListBulletIcon, QuestionMarkCircleIcon, SparklesIcon, DocumentCheckIcon, CheckCircleIcon, DocumentPlusIcon, GlobeAltIcon, PencilSquareIcon, CheckIcon } from './icons';
+import { ReviewAndApproveIcon, ArrowPathIcon, DocumentChartBarIcon, ArrowsRightLeftIcon, DocumentArrowDownIcon, WrenchScrewdriverIcon, CurrencyDollarIcon, ListBulletIcon, QuestionMarkCircleIcon, SparklesIcon, DocumentCheckIcon, CheckCircleIcon, DocumentPlusIcon, GlobeAltIcon, PencilSquareIcon, CheckIcon, ClockIcon } from './icons';
 import { SaveStatus } from './ResultsView';
 import * as pdfjsLib from 'pdfjs-dist';
 
@@ -16,6 +16,7 @@ interface ResultsHeaderProps {
     onViewCostReport: () => void;
     onViewTriageReport: () => void;
     onViewSummaryReport: () => void;
+    onViewHistory: () => void;
     triageReport: any;
     activeView: 'specs' | 'drawings' | 'qa';
     onSetActiveView: (view: 'specs' | 'drawings' | 'qa') => void;
@@ -36,6 +37,7 @@ interface ResultsHeaderProps {
     onAddAddenda: () => void;
     addenda: ProjectFile[];
     isAnalyzingIncrementally: boolean;
+    versionCount: number;
 }
 
 const ResultsHeader = (props: ResultsHeaderProps) => {
@@ -46,7 +48,7 @@ const ResultsHeader = (props: ResultsHeaderProps) => {
         baseSpecsDoc, baseDrawingsDoc, conformedDocument, activeBaseDocProxy, 
         addendaDocs, isTriageLoading, onGenerateSummary, isSummaryLoading, 
         executiveSummary, onSaveProject, saveStatus, onAddAddenda, addenda, 
-        isAnalyzingIncrementally 
+        isAnalyzingIncrementally, onViewHistory, versionCount
     } = props;
 
     const [isExporting, setIsExporting] = useState<string | null>(null);
@@ -168,6 +170,10 @@ const ResultsHeader = (props: ResultsHeaderProps) => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
+                     <button onClick={onViewHistory} className={secondaryActionButtonStyle} title="View Archive snapshots">
+                        <ClockIcon className="h-5 w-5 text-slate-500" /> 
+                        <span>History {versionCount > 0 && <span className="ml-1 px-1.5 py-0.5 bg-brand-100 text-brand-600 rounded-full text-[10px] font-black">{versionCount}</span>}</span>
+                    </button>
                      <button onClick={onAddAddenda} className={secondaryActionButtonStyle} title="Upload and analyze additional addenda" disabled={allDisabled}>
                         <DocumentPlusIcon className="h-5 w-5" /> <span>Add Addenda</span>
                     </button>
@@ -204,7 +210,7 @@ const ResultsHeader = (props: ResultsHeaderProps) => {
                             className={secondaryActionButtonStyle}
                         >
                             {isSummaryLoading ? <Spinner colorClass="text-brand-600" /> : <SparklesIcon className="h-5 w-5 text-brand-600" />}
-                            <span>{isSummaryLoading ? 'Generating...' : (executiveSummary ? 'AI Summary Ready' : 'Generate AI Summary')}</span>
+                            <span>{isSummaryLoading ? 'Generating...' : (executiveSummary ? 'AI Summary Ready' : 'AI Summary')}</span>
                         </button>
                      )}
                 </div>

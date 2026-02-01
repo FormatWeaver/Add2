@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppChangeLogItem, ChangeStatus, AICostAnalysisResult, ChangeType } from '../types';
 import { ChangeListItem } from './ChangeListItem';
-import { ListBulletIcon, ChevronLeftIcon, MagnifyingGlassIcon, PlusCircleIcon, XCircleIcon, ChevronDownIcon, ClipboardDocumentListCheckIcon, ClipboardDocumentListXIcon } from './icons';
+// Comment: Added CheckCircleIcon to fix the "Cannot find name 'CheckCircleIcon'" error on line 184.
+import { ListBulletIcon, ChevronLeftIcon, MagnifyingGlassIcon, PlusCircleIcon, XCircleIcon, ChevronDownIcon, ClipboardDocumentListCheckIcon, ClipboardDocumentListXIcon, CheckCircleIcon } from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MotionDiv = motion.div as any;
@@ -163,12 +164,29 @@ const ChangeListPanel = (props: ChangeListPanelProps) => {
         });
     };
 
+    const handleApproveAllFiltered = () => {
+        if (confirm(`Verify all ${filteredChangeLog.length} filtered items?`)) {
+            handleBulkStatusChange(filteredChangeLog.map(c => c.id), ChangeStatus.APPROVED);
+        }
+    };
+
     return (
         <div className="w-full md:w-5/12 xl:w-4/12 bg-white rounded-2xl border border-gray-200/80 shadow-sm flex flex-col">
             <div className="p-4 border-b border-gray-200 space-y-3">
-                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <ListBulletIcon className="h-6 w-6"/> Changes ({fullChangeLogForView.length})
-                </h2>
+                 <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <ListBulletIcon className="h-6 w-6"/> Changes ({fullChangeLogForView.length})
+                    </h2>
+                    {filteredChangeLog.length > 1 && (
+                        <button 
+                            onClick={handleApproveAllFiltered}
+                            className="text-[10px] font-black text-brand-600 uppercase tracking-widest hover:underline flex items-center gap-1"
+                        >
+                            <CheckCircleIcon className="h-3.5 w-3.5" />
+                            Verify All Filtered
+                        </button>
+                    )}
+                </div>
                  <div className="p-1 bg-slate-100 rounded-lg flex items-center justify-between">
                     {(['ALL', ChangeStatus.PENDING, ChangeStatus.APPROVED, ChangeStatus.REJECTED] as const).map(s => 
                         <FilterButton key={s} status={s} current={statusFilter} setStatus={setStatusFilter} count={counts[s]}/>
@@ -180,10 +198,10 @@ const ChangeListPanel = (props: ChangeListPanelProps) => {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
-                        <span className="text-xs font-semibold text-gray-500 pl-2">Group By:</span>
+                        <span className="text-xs font-semibold text-gray-500 pl-2">Group:</span>
                         <GroupingButton option='discipline' current={groupBy} setGroupBy={setGroupBy} label="Discipline" />
-                        <GroupingButton option='sheet' current={groupBy} setGroupBy={setGroupBy} label="Sheet/Spec" />
-                        <GroupingButton option='addendum' current={groupBy} setGroupBy={setGroupBy} label="Addendum" />
+                        <GroupingButton option='sheet' current={groupBy} setGroupBy={setGroupBy} label="Sheet" />
+                        <GroupingButton option='addendum' current={groupBy} setGroupBy={setGroupBy} label="Addenda" />
                         <GroupingButton option='none' current={groupBy} setGroupBy={setGroupBy} label="None" />
                     </div>
                     <button onClick={() => onSetIsAddModalOpen(true)} className="flex items-center gap-1.5 px-2.5 py-2 text-sm font-semibold rounded-md text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200/80 transition-colors">
@@ -203,17 +221,17 @@ const ChangeListPanel = (props: ChangeListPanelProps) => {
                         ))
                     ) : (
                          groupedAndSortedChanges?.map(([groupKey, changesInGroup]) => (
-                           <MotionDiv key={groupKey} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.15 } }} className="bg-white rounded-lg border border-gray-200/70">
-                               <button onClick={() => toggleGroup(groupKey)} className="w-full flex justify-between items-center text-left p-2.5 bg-slate-50 hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded-t-lg">
+                           <MotionDiv key={groupKey} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.15 } }} className="bg-white rounded-lg border border-gray-200/70 overflow-hidden">
+                               <button onClick={() => toggleGroup(groupKey)} className="w-full flex justify-between items-center text-left p-2.5 bg-slate-50 hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
                                     <h3 className="font-semibold text-gray-700 text-sm truncate pr-4">{groupKey} <span className="text-gray-400 font-normal">({changesInGroup.length})</span></h3>
                                     <div className="flex items-center gap-2">
-                                        <button onClick={(e) => { e.stopPropagation(); handleBulkStatusChange(changesInGroup.map(c => c.id), ChangeStatus.REJECTED); }} title="Reject All in Group" className="p-1 rounded-full text-red-500 hover:bg-red-100"><ClipboardDocumentListXIcon className="h-4 w-4"/></button>
-                                        <button onClick={(e) => { e.stopPropagation(); handleBulkStatusChange(changesInGroup.map(c => c.id), ChangeStatus.APPROVED); }} title="Approve All in Group" className="p-1 rounded-full text-emerald-500 hover:bg-emerald-100"><ClipboardDocumentListCheckIcon className="h-4 w-4"/></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleBulkStatusChange(changesInGroup.map(c => c.id), ChangeStatus.REJECTED); }} title="Reject Group" className="p-1 rounded-full text-red-500 hover:bg-red-100"><ClipboardDocumentListXIcon className="h-4 w-4"/></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleBulkStatusChange(changesInGroup.map(c => c.id), ChangeStatus.APPROVED); }} title="Approve Group" className="p-1 rounded-full text-emerald-500 hover:bg-emerald-100"><ClipboardDocumentListCheckIcon className="h-4 w-4"/></button>
                                         <ChevronDownIcon className={`h-5 w-5 text-gray-500 transition-transform ${expandedGroups.has(groupKey) ? 'rotate-180' : ''}`} />
                                     </div>
                                 </button>
                                 {expandedGroups.has(groupKey) && (
-                                    <div className="border-t border-gray-200/80 p-2 space-y-2">
+                                    <div className="border-t border-gray-200/80 p-2 space-y-2 bg-white">
                                         {changesInGroup.map(change => (
                                              <div key={change.id} data-change-id={change.id}>
                                                 <ChangeListItem change={change} isSelected={selectedChangeId === change.id} onSelect={onSelectChange} onStatusChange={handleStatusChange} onUpdateRFIDraft={handleUpdateRFIDraft} onEditRequest={onEditRequest} onHover={onSetHoveredChange} onStartLocating={onStartLocating} onViewSource={onViewSource} />

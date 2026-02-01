@@ -2,33 +2,40 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { AppChangeLogItem } from '../types';
 
-/**
- * Normalizes text for general-purpose reliable matching by removing extra whitespace and converting to lowercase.
- * @param text The input string.
- * @returns The normalized string.
- */
-const normalizeText = (text: string | undefined | null): string => {
+const normalize = (text: string | undefined | null): string => {
     if (!text) return '';
     return text.replace(/\s+/g, ' ').trim().toLowerCase();
 };
 
-/**
- * Normalizes a sheet number for robust matching.
- * Converts to lowercase and removes all non-alphanumeric characters.
- * e.g., "Drawing: A-101 R1" becomes "drawinga101r1"
- */
-const normalizeSheetNumber = (text: string | undefined | null): string => {
+const normalizeStrict = (text: string | undefined | null): string => {
     if (!text) return '';
     return text.toLowerCase().replace(/[^a-z0-9]/g, '');
 };
 
-
 /**
- * V5.1: This service now uses the `semantic_search_query` provided by the AI for a more
- * robust and intelligent mapping process, simulating a backend vector search.
- * It pre-scans the document to build a text index, then iterates through unmapped
- * changes, searching the index using the high-quality semantic query first.
+ * Calculates a match score between a search term and page content.
+ * Higher scores indicate better matches.
  */
+const calculateMatchScore = (term: string, pageText: string, isPageChange: boolean): number => {
+    const normalizedTerm = isPageChange ? normalizeStrict(term) : normalize(term);
+    const normalizedPage = isPageChange ? normalizeStrict(pageText) : normalize(pageText);
+
+    if (!normalizedTerm || !normalizedPage) return 0;
+    if (normalizedPage === normalizedTerm) return 100; // Perfect match
+    
+    let score = 0;
+    if (normalizedPage.includes(normalizedTerm)) {
+        score += 50;
+        // Bonus for being at the start of a line or paragraph
+        if (normalizedPage.startsWith(normalizedTerm)) score += 20;
+        // Density check: how much of the page is this term?
+        const density = normalizedTerm.length / normalizedPage.length;
+        score += (density * 30);
+    }
+
+    return score;
+};
+
 export async function mapChangesToPages(
   changeLog: AppChangeLogItem[],
   baseDrawings: File | null,
@@ -36,115 +43,73 @@ export async function mapChangesToPages(
 ): Promise<AppChangeLogItem[]> {
   const enrichedChangeLog: AppChangeLogItem[] = JSON.parse(JSON.stringify(changeLog));
   
-  if (!baseDrawings && !baseSpecs) {
-    console.error("No base documents are available for mapping.");
-    return enrichedChangeLog;
-  }
+  if (!baseDrawings && !baseSpecs) return enrichedChangeLog;
   
   const mapDocument = async (docType: 'drawings' | 'specs', documentFile: File | null) => {
     if (!documentFile) return;
 
-    // Identify changes for this document type that need mapping.
-    const unmappedChanges = new Set(enrichedChangeLog.filter(c =>
+    const unmappedChanges = enrichedChangeLog.filter(c =>
         c.source_original_document === docType && 
         ((c.change_type.startsWith('PAGE_') && !c.target_page_number) || (c.change_type.startsWith('TEXT_') && !c.original_page_number))
-    ));
+    );
     
-    if (unmappedChanges.size === 0) return; // No unmapped changes for this doc type.
-
-    console.log(`Starting robust mapping for ${unmappedChanges.size} changes in ${docType}...`);
+    if (unmappedChanges.length === 0) return;
 
     let pdf: pdfjsLib.PDFDocumentProxy | undefined;
     try {
         pdf = await pdfjsLib.getDocument(await documentFile.arrayBuffer()).promise;
         
-        // 1. Pre-process all pages to create a searchable index and detect sheet indexes.
-        const pageTextContents: { normalizedText: string, normalizedSheetText: string, isLikelyIndex: boolean }[] = [];
+        // Build Index
+        const index: { text: string; isIndex: boolean }[] = [];
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const textContent = await page.getTextContent();
             const pageText = textContent.items.map((item: any) => item.str).join(' ');
-
-            // Heuristic: If a page contains more than 10 distinct sheet-like identifiers (e.g., A-101, S-502),
-            // it's probably a sheet index/table of contents.
-            const sheetIdentifierRegex = /[A-Z]{1,3}[-.\s]?[0-9]{1,3}(\.[0-9]{1,2})?/gi;
-            const matches = pageText.match(sheetIdentifierRegex);
-            const uniqueMatches = matches ? new Set(matches.map(m => normalizeSheetNumber(m))) : new Set();
-
-            pageTextContents.push({
-                normalizedText: normalizeText(pageText),
-                normalizedSheetText: normalizeSheetNumber(pageText),
-                isLikelyIndex: uniqueMatches.size > 10
+            
+            const sheetRegex = /[A-Z]{1,3}[-.\s]?[0-9]{1,3}/gi;
+            const matches = pageText.match(sheetRegex);
+            index.push({
+                text: pageText,
+                isIndex: (matches?.length || 0) > 12
             });
             page.cleanup();
         }
         
-        // 2. Iterate through each unmapped change and scan the document index for it.
-        for (const change of Array.from(unmappedChanges)) {
-            let changeMapped = false;
-
-            // Use a specific order of search terms for higher accuracy.
-            const searchTerms: string[] = [
-                change.semantic_search_query, // Highest priority
+        for (const change of unmappedChanges) {
+            const isPageChange = change.change_type.startsWith('PAGE_');
+            const searchTerms = [
+                change.semantic_search_query,
                 change.location_hint,
                 change.spec_section,
-                change.exact_text_to_find, // Lowest priority for location
+                change.exact_text_to_find
             ].filter((t): t is string => !!t);
 
-            const uniqueTerms = [...new Set(searchTerms)];
+            let bestPage = -1;
+            let highestScore = 0;
 
-            for (const term of uniqueTerms) {
-                if (changeMapped) break;
+            for (let pageNum = 1; pageNum <= index.length; pageNum++) {
+                const pageData = index[pageNum - 1];
+                let pageScore = 0;
 
-                const isPageChange = change.change_type.startsWith('PAGE_');
-                const foundPages: number[] = [];
-                const normalizedTerm = isPageChange ? normalizeSheetNumber(term) : normalizeText(term);
-
-                for (let i = 0; i < pageTextContents.length; i++) {
-                    const pageContent = pageTextContents[i];
-                    const contentToSearch = isPageChange ? pageContent.normalizedSheetText : pageContent.normalizedText;
-
-                    if (normalizedTerm && contentToSearch.includes(normalizedTerm)) {
-                        foundPages.push(i + 1);
-                    }
+                for (let i = 0; i < searchTerms.length; i++) {
+                    const weight = (searchTerms.length - i) / searchTerms.length;
+                    const termScore = calculateMatchScore(searchTerms[i], pageData.text, isPageChange);
+                    pageScore += (termScore * weight);
                 }
-                
-                if (foundPages.length > 0) {
-                    let pageToAssign: number;
 
-                    if (isPageChange && foundPages.length > 1) {
-                        // NEW HEURISTIC: Filter out pages that are likely sheet indexes.
-                        const nonIndexPages = foundPages.filter(pageNum => !pageTextContents[pageNum - 1].isLikelyIndex);
-                        
-                        if (nonIndexPages.length > 0) {
-                            // If we found some plausible non-index pages, use the last of those.
-                            pageToAssign = nonIndexPages[nonIndexPages.length - 1];
-                        } else {
-                            // If all candidates seem to be index pages, fall back to the original heuristic.
-                            pageToAssign = foundPages[foundPages.length - 1];
-                        }
-                    } else {
-                        // For text changes or single page matches, use the original heuristic.
-                        pageToAssign = isPageChange ? foundPages[foundPages.length - 1] : foundPages[0];
-                    }
-                    
-                    const originalChange = enrichedChangeLog.find(item => item.id === change.id);
-                    if (originalChange) {
-                        if (isPageChange) {
-                            originalChange.target_page_number = pageToAssign;
-                        } else {
-                            originalChange.original_page_number = pageToAssign;
-                        }
-                    }
-                    
-                    unmappedChanges.delete(change);
-                    changeMapped = true; // Mark as mapped and break from the terms loop.
+                // De-prioritize index/TOC pages for actual content changes
+                if (pageData.isIndex && !isPageChange) pageScore *= 0.1;
+
+                if (pageScore > highestScore && pageScore > 15) { // Minimum threshold
+                    highestScore = pageScore;
+                    bestPage = pageNum;
                 }
             }
-        }
-        
-        if (unmappedChanges.size > 0) {
-            console.warn(`Could not map ${unmappedChanges.size} changes in ${docType}. This may be because the text or sheet number was not found in the original document.`, Array.from(unmappedChanges));
+
+            if (bestPage !== -1) {
+                if (isPageChange) change.target_page_number = bestPage;
+                else change.original_page_number = bestPage;
+            }
         }
     } finally {
         pdf?.destroy();

@@ -14,7 +14,6 @@ import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { Spinner } from './Spinner';
 import { PlusIcon } from './icons/PlusIcon';
 import { ArrowRightIcon } from './icons/ArrowRightIcon';
-// Comment: Added ShieldCheckIcon import to fix "Cannot find name 'ShieldCheckIcon'" error on line 473.
 import { ShieldCheckIcon } from './icons/ShieldCheckIcon';
 
 const MotionDiv = motion.div as any;
@@ -198,7 +197,7 @@ const BlueprintFileChip = ({ file }: { file: File | ProjectFile | null }) => {
 interface DocumentUploaderProps {
   appState: AppState;
   stagedFiles: { baseDrawings: File | null; baseSpecs: File | null; };
-  onStartIndexing: (baseDrawings: File | null, baseSpecs: File | null, projectName: string) => void;
+  onStartIndexing: (baseDrawings: File | null, baseSpecs: File | null, projectName: string, directives?: string) => void;
   onAnalyzeAddenda: (addenda: File[]) => void;
   onReset: () => void;
 }
@@ -266,6 +265,8 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
     const [stagedBaseSpecs, setStagedBaseSpecs] = useState<File | null>(null);
     const [stagedAddenda, setStagedAddenda] = useState<File[]>([]);
     const [projectName, setProjectName] = useState('');
+    const [customDirectives, setCustomDirectives] = useState('');
+    const actionAreaRef = useRef<HTMLDivElement>(null);
     
     useEffect(() => {
         if (!projectName && (stagedBaseSpecs || stagedBaseDrawings)) {
@@ -279,6 +280,16 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
             setProjectName(derivedName || '');
         }
     }, [stagedBaseSpecs, stagedBaseDrawings, projectName]);
+
+    // Auto-scroll logic: scroll to action button when files are added
+    useEffect(() => {
+        if (stagedBaseDrawings || stagedBaseSpecs || stagedAddenda.length > 0) {
+            const timer = setTimeout(() => {
+                actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [stagedBaseDrawings, stagedBaseSpecs, stagedAddenda.length]);
 
     const onDrawingsDrop = useCallback((acceptedFiles: File[]) => setStagedBaseDrawings(acceptedFiles[0] || null), []);
     const onSpecsDrop = useCallback((acceptedFiles: File[]) => setStagedBaseSpecs(acceptedFiles[0] || null), []);
@@ -320,16 +331,31 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
                 <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-500">Transform your base tender documents into an intelligent AI blueprint.</p>
             </div>
 
-            <div className="w-full max-w-2xl mx-auto mb-12">
-                <label htmlFor="projectName" className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Project Title</label>
-                <input 
-                    type="text" 
-                    id="projectName"
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    placeholder="e.g., Downtown Hospital Expansion"
-                    className="w-full px-6 py-4 text-xl font-bold border-2 border-slate-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all outline-none"
-                />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 w-full max-w-5xl mx-auto mb-12">
+                <div>
+                    <label htmlFor="projectName" className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Project Title</label>
+                    <input 
+                        type="text" 
+                        id="projectName"
+                        value={projectName}
+                        onChange={(e) => setProjectName(e.target.value)}
+                        placeholder="e.g., Metrotown Tower B"
+                        className="w-full px-6 py-4 text-xl font-bold border-2 border-slate-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all outline-none bg-slate-50/50"
+                    />
+                </div>
+                <div>
+                    <label htmlFor="directives" className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                        Aegis Briefing Directives
+                        <span className="bg-brand-100 text-brand-600 px-2 py-0.5 rounded text-[8px] tracking-widest uppercase">Expert</span>
+                    </label>
+                    <textarea 
+                        id="directives"
+                        value={customDirectives}
+                        onChange={(e) => setCustomDirectives(e.target.value)}
+                        placeholder="e.g., 'Specifically flag any structural steel substitutions' or 'Monitor changes to closing time.'"
+                        className="w-full px-6 py-4 text-sm font-bold border-2 border-slate-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-brand-500/10 focus:border-brand-500 transition-all outline-none bg-slate-50/50 h-[64px] resize-none"
+                    />
+                </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-[2fr_auto_2fr] gap-8 items-start">
@@ -356,8 +382,8 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
                 </AnimatePresence>
             </div>
             
-            <div className="mt-12 text-center flex flex-col items-center gap-4">
-                 <button onClick={() => onStartIndexing(stagedBaseDrawings, stagedBaseSpecs, projectName)} disabled={(!stagedBaseDrawings && !stagedBaseSpecs) || !projectName.trim()} className="flex items-center gap-3 px-10 py-5 bg-brand-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-brand-500/20 hover:bg-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-500/50 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-300 text-lg hover:-translate-y-1 active:translate-y-0">
+            <div ref={actionAreaRef} className="mt-12 text-center flex flex-col items-center gap-4">
+                 <button onClick={() => onStartIndexing(stagedBaseDrawings, stagedBaseSpecs, projectName, customDirectives)} disabled={(!stagedBaseDrawings && !stagedBaseSpecs) || !projectName.trim()} className="flex items-center gap-3 px-10 py-5 bg-brand-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-brand-500/20 hover:bg-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-500/50 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-all duration-300 text-lg hover:-translate-y-1 active:translate-y-0">
                     <SparklesIcon className="h-6 w-6" /> Index Blueprint
                   </button>
             </div>
@@ -441,14 +467,14 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
                 </MotionDiv>
             )}
 
-            <div className="mt-12 text-center flex flex-col sm:flex-row items-center justify-center gap-6">
+            <div ref={actionAreaRef} className="mt-12 text-center flex flex-col sm:flex-row items-center justify-center gap-6">
                 {stagedAddenda.length === 0 ? (
                     <div className="flex flex-col items-center gap-4">
                         <button 
                             onClick={() => onAnalyzeAddenda([])} 
                             className="flex items-center gap-3 px-10 py-5 bg-slate-900 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl hover:bg-slate-800 transition-all text-lg group"
                         >
-                            Review Base Set Only <ArrowRightIcon className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
+                            Index Base Set Only <ArrowRightIcon className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
                         </button>
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Proceeding without Addenda</p>
                     </div>

@@ -75,7 +75,7 @@ export const verifyDocumentConsistency = async (files: (File | null)[], contextQ
     } catch (error) { return { is_consistent: true, reasoning: "Error checking consistency." }; }
 };
 
-export const generateConformingPlan = async (addendaFiles: File[], baseDrawingsFile: File | null, baseSpecsFile: File | null): Promise<{ plan: AIConformingPlan }> => {
+export const generateConformingPlan = async (addendaFiles: File[], baseDrawingsFile: File | null, baseSpecsFile: File | null, customDirectives?: string): Promise<{ plan: AIConformingPlan }> => {
     try {
         const [specsManifest, drawingsManifest] = await Promise.all([
             createFullTextManifest(baseSpecsFile, 'specifications'),
@@ -86,6 +86,9 @@ export const generateConformingPlan = async (addendaFiles: File[], baseDrawingsF
         const prompt = `
 You are a World-Class Construction Risk Manager and Senior Estimator. 
 Your task is to EXHAUSTIVELY identify every single instruction in the provided addenda that changes the original project documents.
+
+**SPECIAL PROJECT DIRECTIVES**:
+${customDirectives ? `CRITICAL FOCUS: ${customDirectives}` : "Follow standard professional estimating best practices."}
 
 **CORE DIRECTIVE**:
 Surgically extract change instructions. You must find:

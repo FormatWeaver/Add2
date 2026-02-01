@@ -47,14 +47,14 @@ export const fetchAllProjectsGlobal = async (): Promise<Map<string, AppState>> =
 
 /**
  * FIXED: Admin method to fetch ALL users.
- * Optimized to bypass potential RLS issues by looking at unique user_ids 
- * in the projects table and combining them with the profiles table.
+ * Performs a broad 'Identity Discovery' by looking at both explicit profiles
+ * and individual user metadata stored within global project states.
  */
 export const fetchAllUsersGlobal = async (): Promise<User[]> => {
     try {
         const uniqueUsers = new Map<string, User>();
 
-        // 1. Get from profiles
+        // 1. Primary Source: Profiles table
         const { data: profiles } = await supabase.from('profiles').select('*');
         if (profiles) {
             profiles.forEach((d: any) => {
@@ -72,7 +72,7 @@ export const fetchAllUsersGlobal = async (): Promise<User[]> => {
             });
         }
 
-        // 2. Discover from projects table (look for users who might not have a profile record yet)
+        // 2. Secondary Discovery: Projects table (scrapes identities from projects if profiles are missing)
         const { data: projects } = await supabase.from('projects').select('user_id, app_state');
         if (projects) {
             projects.forEach(p => {
@@ -80,11 +80,11 @@ export const fetchAllUsersGlobal = async (): Promise<User[]> => {
                 if (state.currentUser && !uniqueUsers.has(state.currentUser.id)) {
                     uniqueUsers.set(state.currentUser.id, state.currentUser);
                 } else if (p.user_id && !uniqueUsers.has(p.user_id)) {
-                    // Create a placeholder if we only have the ID
+                    // Fallback for cases where we only have a raw ID
                     uniqueUsers.set(p.user_id, {
                         id: p.user_id,
-                        email: 'discovered-user@platform.local',
-                        name: 'Discovered User',
+                        email: 'discovered-identity@platform.local',
+                        name: 'Discovered Estimator',
                         role: 'user'
                     });
                 }
@@ -93,7 +93,7 @@ export const fetchAllUsersGlobal = async (): Promise<User[]> => {
 
         return Array.from(uniqueUsers.values());
     } catch (err) {
-        console.error("Platform discovery failed:", err);
+        console.error("Platform directory discovery failed:", err);
         return [];
     }
 };

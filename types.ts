@@ -59,6 +59,13 @@ export enum RiskLevel {
     INFO = "INFO"
 }
 
+export interface ChatMessage {
+    id: string;
+    role: 'user' | 'model';
+    text: string;
+    timestamp: number;
+}
+
 export interface PageMapItem {
     conformed_page_number: number;
     source_document: 'original' | 'addendum';
@@ -210,14 +217,12 @@ export interface AppChangeLogItem {
   due_date?: number; // Timestamp
 }
 
-// Added missing interface: ConformedPageInfo
 export interface ConformedPageInfo {
     map: PageMapItem;
     conformedPageNumber: number;
     approvedTextChanges: AppChangeLogItem[];
 }
 
-// Added missing interface: SelectionRect
 export interface SelectionRect {
     x: number;
     y: number;
@@ -225,7 +230,6 @@ export interface SelectionRect {
     height: number;
 }
 
-// Added missing interface: ClickableArea
 export interface ClickableArea {
     x: number;
     y: number;
@@ -247,6 +251,15 @@ export interface AppError {
 }
 
 export type MonitoringStatus = 'idle' | 'checking' | 'found' | 'error';
+
+export interface ProjectVersion {
+    id: string;
+    timestamp: number;
+    label: string;
+    changeLogSnapshot: AppChangeLogItem[];
+    qaLogSnapshot: QAndAItem[];
+    createdBy: string;
+}
 
 export interface AppState {
     projectId: string;
@@ -273,4 +286,7 @@ export interface AppState {
     monitoringUrl?: string;
     lastChecked?: number | null;
     monitoringStatus?: MonitoringStatus;
+    chatHistory?: ChatMessage[];
+    versions?: ProjectVersion[];
+    customDirectives?: string;
 }

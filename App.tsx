@@ -26,6 +26,15 @@ const MotionDiv = motion.div as any;
 
 const MASTER_ACCOUNT_EMAIL = 'tristanbishop37@gmail.com';
 
+const BrandAvatar = ({ className }: { className?: string }) => (
+    <div className={`bg-[#1e293b] flex items-center justify-center overflow-hidden ${className}`}>
+        <svg viewBox="0 0 30 40" className="w-1/2 h-1/2">
+            <path d="M4 36 L15 4 L26 36" fill="none" stroke="white" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M9 25 L13 29 L23 19" fill="none" stroke="#f59e0b" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    </div>
+);
+
 const createInitialAppState = (projectId: string, projectName: string | null = null): AppState => ({
     projectId,
     phase: AppPhase.PROJECT_SETUP,
@@ -49,6 +58,8 @@ const createInitialAppState = (projectId: string, projectName: string | null = n
     costAnalysisResult: null,
     costAnalysisError: null,
     monitoringStatus: 'idle',
+    versions: [],
+    customDirectives: ''
 });
 
 interface LoadedPdfDocs {
@@ -173,7 +184,7 @@ export default function App() {
         try { await saveProject(appState); } catch (err) { console.warn("Auto-save blip:", err); } finally { setIsSaving(false); }
     }, 2000);
     return () => clearTimeout(timer);
-  }, [appState?.changeLog, appState?.phase, appState?.projectName, appState?.triageReport, appState?.executiveSummary, appState?.monitoringUrl, appState?.monitoringStatus]);
+  }, [appState?.changeLog, appState?.phase, appState?.projectName, appState?.triageReport, appState?.executiveSummary, appState?.monitoringUrl, appState?.monitoringStatus, appState?.versions, appState?.customDirectives]);
 
   useEffect(() => {
     if (currentUser) { if (currentPage === Page.LOGIN || currentPage === Page.LANDING) setCurrentPage(Page.DASHBOARD); } 
@@ -276,12 +287,13 @@ export default function App() {
     }
   };
 
-  const handleCreateIndexing = async (baseDrawingsFile: File | null, baseSpecsFile: File | null, projectName: string) => {
+  const handleCreateIndexing = async (baseDrawingsFile: File | null, baseSpecsFile: File | null, projectName: string, directives?: string) => {
     if (!currentUser || !projectName.trim()) return;
     const newProjectId = crypto.randomUUID();
     const newProjectState = createInitialAppState(newProjectId, projectName);
     newProjectState.phase = AppPhase.INDEXING_IN_PROGRESS;
     newProjectState.currentUser = currentUser;
+    newProjectState.customDirectives = directives;
     setProjects(prev => { const next = new Map(prev); next.set(newProjectId, newProjectState); return next; });
     setActiveProjectId(newProjectId);
     setCurrentPage(Page.APP);
@@ -338,7 +350,7 @@ export default function App() {
         const loadedArray = await Promise.all(addendaFiles.map(async f => ({ name: f.name, doc: await pdfjsLib.getDocument(await f.arrayBuffer()).promise })));
         setLoadedDocs(prev => ({ ...prev, addenda: new Map([...prev.addenda, ...loadedArray.map(i => [i.name, i.doc] as [string, pdfjsLib.PDFDocumentProxy])]) }));
         setStagedFiles(prev => ({ ...prev, addenda: [...prev.addenda, ...addendaFiles] }));
-        const { plan: aiPlan } = await generateConformingPlan(addendaFiles, bDraw, bSpec);
+        const { plan: aiPlan } = await generateConformingPlan(addendaFiles, bDraw, bSpec, appState.customDirectives);
         const currentMaxId = appState.changeLog.reduce((max, item) => Math.max(item.id, max), -1);
         let idCounter = currentMaxId + 1;
         const newQa = (aiPlan.questions_and_answers || []).map(qa => ({ ...qa, id: idCounter++ }));
@@ -452,7 +464,7 @@ export default function App() {
       case AppPhase.ANALYZING_ADDENDUM: return <ProcessingView headline="Analyzing..." subline="Cross-referencing addenda." onForceReset={handleReset} items={["Parsing instructions...", "Risk assessment...", "Matching content..."]} />;
       case AppPhase.MAPPING_CHANGES: return <ProcessingView headline="Locating..." subline="Pinpointing impact areas." onForceReset={handleReset} items={["Scanning targets...", "Computing coordinates...", "Building audit trail..."]} />;
       case AppPhase.RESULTS:
-        return ( <ResultsView projectName={appState.projectName || ''} onUpdateProjectName={handleUpdateProjectName} changeLog={appState.changeLog} qaLog={appState.qaLog} setChangeLog={setChangeLog} baseDrawingsDoc={loadedDocs.baseDrawings} baseSpecsDoc={loadedDocs.baseSpecs} addendaDocs={loadedDocs.addenda} baseDrawingsPageCount={appState.baseDrawingsPageCount} baseSpecsPageCount={appState.baseSpecsPageCount} onStartOver={handleReset} onCreateChange={()=>{}} triageReport={appState.triageReport} addenda={appState.addenda} executiveSummary={appState.executiveSummary} summaryError={appState.summaryError} costAnalysisResult={appState.costAnalysisResult} costAnalysisError={appState.costAnalysisError} onGenerateCostImpact={handleGenerateCostImpact} isSummaryLoading={isSummaryLoading} onGenerateSummary={handleGenerateExecutiveSummary} onGenerateTriageReport={handleGenerateTriageReport} isTriageLoading={isTriageLoading} triageError={triageError} onAnalyzeAdditionalAddenda={handleAnalysis} isAnalyzingIncrementally={isAnalyzingIncrementally} isSaving={isSaving} /> );
+        return ( <ResultsView projectName={appState.projectName || ''} onUpdateProjectName={handleUpdateProjectName} changeLog={appState.changeLog} qaLog={appState.qaLog} setChangeLog={setChangeLog} baseDrawingsDoc={loadedDocs.baseDrawings} baseSpecsDoc={loadedDocs.baseSpecs} addendaDocs={loadedDocs.addenda} baseDrawingsPageCount={appState.baseDrawingsPageCount} baseSpecsPageCount={appState.baseSpecsPageCount} onStartOver={handleReset} onCreateChange={()=>{}} triageReport={appState.triageReport} addenda={appState.addenda} executiveSummary={appState.executiveSummary} summaryError={appState.summaryError} costAnalysisResult={appState.costAnalysisResult} costAnalysisError={appState.costAnalysisError} onGenerateCostImpact={handleGenerateCostImpact} isSummaryLoading={isSummaryLoading} onGenerateSummary={handleGenerateExecutiveSummary} onGenerateTriageReport={handleGenerateTriageReport} isTriageLoading={isTriageLoading} triageError={triageError} onAnalyzeAdditionalAddenda={handleAnalysis} isAnalyzingIncrementally={isAnalyzingIncrementally} isSaving={isSaving} versions={appState.versions} updateProjectState={updateActiveProjectState} /> );
       default: return <p>Unknown state.</p>;
     }
   };
@@ -553,7 +565,9 @@ export default function App() {
                                 className={`h-9 w-9 rounded-full overflow-hidden border-2 transition-all shadow-sm ${isProfileDropdownOpen ? 'border-brand-500 ring-2 ring-brand-100' : 'border-slate-200 hover:border-brand-400'}`}
                                 title="My Account"
                             >
-                                {currentUser.avatarUrl ? (
+                                {currentUser.email === MASTER_ACCOUNT_EMAIL ? (
+                                    <BrandAvatar className="h-full w-full" />
+                                ) : currentUser.avatarUrl ? (
                                     <img src={currentUser.avatarUrl} alt={currentUser.name} className="h-full w-full object-cover" />
                                 ) : (
                                     <div className="h-full w-full bg-slate-100 flex items-center justify-center text-slate-400">
@@ -572,7 +586,13 @@ export default function App() {
                                     >
                                         <div className="p-4 bg-slate-50/80 border-b border-slate-100 flex items-center gap-3">
                                             <div className="h-10 w-10 rounded-full overflow-hidden border border-slate-200 bg-white">
-                                                {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} className="h-full w-full object-cover" /> : <UserIcon className="h-6 w-6 text-slate-300 m-2" />}
+                                                {currentUser.email === MASTER_ACCOUNT_EMAIL ? (
+                                                    <BrandAvatar className="h-full w-full" />
+                                                ) : currentUser.avatarUrl ? (
+                                                    <img src={currentUser.avatarUrl} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <UserIcon className="h-6 w-6 text-slate-300 m-2" />
+                                                )}
                                             </div>
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-1.5">

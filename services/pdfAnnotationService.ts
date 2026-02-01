@@ -1,320 +1,124 @@
+
 import { AppChangeLogItem, ChangeType, ClickableArea } from '../types';
 
-/**
- * Normalizes text for more reliable matching by removing extra whitespace and converting to lowercase.
- * @param text The input string.
- * @returns The normalized string.
- */
-const normalizeText = (text: string | undefined | null): string => {
+const normalize = (text: string | undefined | null): string => {
     if (!text) return '';
     return text.replace(/\s+/g, ' ').trim().toLowerCase();
 };
 
-/**
- * Finds all occurrences of a search string (which can be multi-line) on a PDF page
- * and returns their bounding boxes.
- * @param page A loaded pdf.js page object.
- * @param searchText The text to find.
- * @returns An array of coordinate objects { x, y, width, height }.
- */
 const findTextCoordinates = async (page: any, searchText: string) => {
     if (!searchText) return [];
     const textContent = await page.getTextContent();
     const items = textContent.items as any[];
 
-    // Create a page string and a map from each character to its item index.
+    // Build map for better multi-line resilience
     let pageText = "";
-    const charToItemMap: number[] = [];
-    for (let i = 0; i < items.length; i++) {
-        const itemText = items[i].str;
-        pageText += itemText;
-        for (let j = 0; j < itemText.length; j++) {
-            charToItemMap.push(i);
+    const charToItemMap: { itemIdx: number; charInItemIdx: number }[] = [];
+    
+    items.forEach((item, itemIdx) => {
+        const str = item.str;
+        for (let charInItemIdx = 0; charInItemIdx < str.length; charInItemIdx++) {
+            charToItemMap.push({ itemIdx, charInItemIdx });
         }
-    }
+        pageText += str;
+    });
 
-    // Normalize both texts to handle variations in whitespace and line breaks.
-    const normalizedPageText = pageText.replace(/\s+/g, ' ');
-    const normalizedSearchText = searchText.replace(/\s+/g, ' ');
+    const normPage = normalize(pageText);
+    const normSearch = normalize(searchText);
+    if (!normSearch) return [];
 
-    const allCoordinates = [];
+    const allCoords = [];
     let lastIndex = -1;
 
-    while ((lastIndex = normalizedPageText.indexOf(normalizedSearchText, lastIndex + 1)) !== -1) {
-        const startCharIndex = lastIndex;
-        const endCharIndex = lastIndex + normalizedSearchText.length;
-
-        const startItemIndex = charToItemMap[startCharIndex];
-        let endItemIndex = startItemIndex;
-        for (let i = startCharIndex; i < endCharIndex; i++) {
-             if (charToItemMap[i] > endItemIndex) {
-                endItemIndex = charToItemMap[i];
-            }
-        }
+    // Use normalized search but map back to original indices
+    while ((lastIndex = normPage.indexOf(normSearch, lastIndex + 1)) !== -1) {
+        // Simple mapping: search is normalized, so we find approximate bounds in original pageText
+        // For precision in PDFs, we find items that contain parts of the search string
+        const startIdx = Math.floor((lastIndex / normPage.length) * pageText.length);
+        const endIdx = Math.floor(((lastIndex + normSearch.length) / normPage.length) * pageText.length);
         
-        if (startItemIndex === undefined || endItemIndex === undefined) continue;
+        const relevantItems = new Set<number>();
+        for (let k = Math.max(0, startIdx - 5); k < Math.min(pageText.length, endIdx + 5); k++) {
+            if (charToItemMap[k]) relevantItems.add(charToItemMap[k].itemIdx);
+        }
 
-        const relevantItems = items.slice(startItemIndex, endItemIndex + 1);
-        if (relevantItems.length === 0) continue;
+        const itemsToMeasure = Array.from(relevantItems).map(idx => items[idx]).filter(Boolean);
+        if (itemsToMeasure.length === 0) continue;
 
-        const x = Math.min(...relevantItems.map(item => item.transform[4]));
-        const y = Math.min(...relevantItems.map(item => item.transform[5]));
-        const width = Math.max(...relevantItems.map(item => item.transform[4] + item.width)) - x;
-        const height = Math.max(...relevantItems.map(item => item.transform[5] + item.height)) - y;
+        const x = Math.min(...itemsToMeasure.map(item => item.transform[4]));
+        const y = Math.min(...itemsToMeasure.map(item => item.transform[5]));
+        const width = Math.max(...itemsToMeasure.map(item => item.transform[4] + item.width)) - x;
+        const height = Math.max(...itemsToMeasure.map(item => item.transform[5] + item.height)) - y;
 
-        allCoordinates.push({ x, y, width, height });
+        allCoords.push({ x, y, width, height });
     }
 
-    return allCoordinates;
+    return allCoords;
 };
 
-// Helper to wrap text for margin notes
-function wrapText(context: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) {
-    const words = text.split(' ');
-    let line = '';
-
-    for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = context.measureText(testLine);
-        const testWidth = metrics.width;
-        if (testWidth > maxWidth && n > 0) {
-            context.fillText(line, x, y);
-            line = words[n] + ' ';
-            y += lineHeight;
-        } else {
-            line = testLine;
-        }
-    }
-    context.fillText(line, x, y);
-}
-
-/**
- * Draws a semi-transparent highlight over the area of a change.
- * Used for the "Spotlight on Hover" feature.
- */
-export const drawSpotlightAnnotation = async (
-    ctx: CanvasRenderingContext2D,
-    page: any,
-    viewport: any,
-    change: AppChangeLogItem
-) => {
-    if (!change) return;
-
+export const drawSpotlightAnnotation = async (ctx: CanvasRenderingContext2D, page: any, viewport: any, change: AppChangeLogItem) => {
     if (change.change_type.startsWith('PAGE_')) {
-        ctx.fillStyle = 'rgba(253, 224, 71, 0.2)';
+        ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
         ctx.fillRect(0, 0, viewport.width, viewport.height);
         return;
     }
-
-    const searchText = change.exact_text_to_find || change.location_hint;
-    if (!searchText) return;
-    const coords = await findTextCoordinates(page, searchText);
-
-    if (coords.length > 0) {
-        ctx.fillStyle = 'rgba(253, 224, 71, 0.4)'; // A nice highlight yellow
-        for (const c of coords) {
-            const canvasRect = viewport.convertToViewportRectangle([c.x, c.y, c.x + c.width, c.y + c.height]);
-            const [x1, y1, x2, y2] = canvasRect;
-            const padding = 2 * viewport.scale;
-            ctx.fillRect(x1 - padding, y1 - padding, (x2 - x1) + (padding * 2), (y2 - y1) + (padding * 2));
-        }
-    }
+    const term = change.exact_text_to_find || change.location_hint;
+    if (!term) return;
+    const coords = await findTextCoordinates(page, term);
+    ctx.fillStyle = 'rgba(245, 158, 11, 0.25)'; // Amber spotlight
+    coords.forEach(c => {
+        const [x1, y1, x2, y2] = viewport.convertToViewportRectangle([c.x, c.y, c.x + c.width, c.y + c.height]);
+        ctx.fillRect(x1 - 2, y1 - 2, (x2 - x1) + 4, (y2 - y1) + 4);
+    });
 };
 
-
-export const drawAnnotations = async (
-    ctx: CanvasRenderingContext2D,
-    page: any,
-    viewport: any,
-    changes: AppChangeLogItem[]
-): Promise<ClickableArea[]> => {
-    if (!changes || changes.length === 0) return [];
-    
+export const drawAnnotations = async (ctx: CanvasRenderingContext2D, page: any, viewport: any, changes: AppChangeLogItem[]): Promise<ClickableArea[]> => {
     const clickableAreas: ClickableArea[] = [];
-    const textChanges = changes.filter(c => c.change_type.startsWith('TEXT_') && (c.exact_text_to_find || c.location_hint));
-    if (textChanges.length === 0) return [];
-
-    const marginX = viewport.width * 0.75;
-    const marginWidth = viewport.width * 0.25 - 20;
-    let marginNoteY = 40;
     const scale = viewport.scale;
+    const marginX = viewport.width * 0.76;
+    const marginWidth = viewport.width * 0.22;
+    let marginY = 50;
 
-    for (const change of textChanges) {
-        let coords = [];
-        let isFallback = false;
+    for (const change of changes) {
+        const term = change.exact_text_to_find || change.location_hint;
+        if (!term) continue;
+        const coords = await findTextCoordinates(page, term);
         
-        if (change.exact_text_to_find) {
-            coords = await findTextCoordinates(page, change.exact_text_to_find);
-        }
-        
-        if (coords.length === 0 && change.location_hint) {
-            coords = await findTextCoordinates(page, change.location_hint);
-            if (coords.length > 0) {
-                isFallback = true;
-            }
-        }
-        
-        if (coords.length === 0) {
-            let noteText = '';
-            
-            switch(change.change_type) {
-                case ChangeType.TEXT_REPLACE:
-                    noteText = `In/Near "${change.location_hint}", REPLACE: "${change.exact_text_to_find || ''}" WITH: "${change.new_text_to_insert || ''}"`;
-                    break;
-                case ChangeType.TEXT_DELETE:
-                    noteText = `In/Near "${change.location_hint}", DELETE: "${change.exact_text_to_find || ''}"`;
-                    break;
-                case ChangeType.TEXT_ADD:
-                     noteText = `In/Near "${change.location_hint}", ADD: "${change.new_text_to_insert || ''}"`;
-                    break;
-                default:
-                     noteText = `A change was noted here but its exact position could not be determined. Check addendum page ${change.source_page}.`;
-            }
+        const isDelete = change.change_type.includes('DELETE') || change.change_type.includes('REPLACE');
+        const color = isDelete ? '#ef4444' : '#3b82f6';
 
-            // Draw a single, prominent, un-anchored note in the margin.
-            const fontSize = 11 * scale;
-            const lineHeight = 12 * scale;
-            ctx.font = `bold ${fontSize}px Arial`;
-            
-            const textX = marginX + 10 * scale;
-            
-            const words = noteText.split(' ');
-            let line = '';
-            let lineCount = 1;
-            for (const word of words) {
-                const testLine = line + word + ' ';
-                if (ctx.measureText(testLine).width > marginWidth - 20 * scale && line.length > 0) {
-                    line = word + ' ';
-                    lineCount++;
-                } else {
-                    line = testLine;
-                }
-            }
-            const noteHeight = lineCount * lineHeight;
-            const boxHeight = noteHeight + 20 * scale;
-            const boxY = marginNoteY;
-            
-            ctx.fillStyle = 'rgba(254, 243, 199, 1)'; // Amber background for unlocated changes
-            ctx.strokeStyle = 'rgba(251, 191, 36, 1)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.roundRect(marginX, boxY, marginWidth, boxHeight, 5 * scale);
-            ctx.fill();
-            ctx.stroke();
-            
-            clickableAreas.push({ x: marginX, y: boxY, width: marginWidth, height: boxHeight, changeId: change.id });
-
-            ctx.fillStyle = '#78350f'; // Dark amber text
-            wrapText(ctx, noteText, textX, boxY + 10 * scale + (lineHeight * 0.8), marginWidth - 10 * scale, lineHeight);
-            
-            marginNoteY += boxHeight + 15 * scale;
-            continue; 
-        }
-
-        // --- FIXED LOGIC FOR ANCHORED NOTES ---
-
-        // 1. Draw all on-page highlights and create clickable areas
-        for (const c of coords) {
-            const canvasRect = viewport.convertToViewportRectangle([c.x, c.y, c.x + c.width, c.y + c.height]);
-            const [x1, y1, x2, y2] = canvasRect;
-
+        coords.forEach(c => {
+            const [x1, y1, x2, y2] = viewport.convertToViewportRectangle([c.x, c.y, c.x + c.width, c.y + c.height]);
+            ctx.fillStyle = isDelete ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.1)';
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
             clickableAreas.push({ x: x1, y: y1, width: x2 - x1, height: y2 - y1, changeId: change.id });
+        });
 
-            if (!isFallback && (change.change_type.includes('DELETE') || change.change_type.includes('REPLACE'))) {
-                ctx.fillStyle = 'rgba(239, 68, 68, 0.4)'; // transparent red
-                ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
-            }
-        }
-
-        // 2. Determine the text and color theme for the single margin note
-        let noteText = '';
-        type NoteTheme = 'add' | 'delete' | 'fallback';
-        let noteTheme: NoteTheme = 'add';
-
-        if (isFallback) {
-            noteTheme = 'fallback';
-            switch(change.change_type) {
-                case ChangeType.TEXT_REPLACE: noteText = `REPLACE: "${change.exact_text_to_find || ''}" WITH: "${change.new_text_to_insert || ''}"`; break;
-                case ChangeType.TEXT_DELETE: noteText = `DELETE: "${change.exact_text_to_find || ''}"`; break;
-                case ChangeType.TEXT_ADD: noteText = `ADD: "${change.new_text_to_insert || ''}"`; break;
-            }
-        } else {
-            if ((change.change_type.includes('ADD') || change.change_type.includes('REPLACE')) && change.new_text_to_insert) {
-                noteText = change.new_text_to_insert;
-                noteTheme = 'add';
-            } else if (change.change_type.includes('DELETE')) {
-                noteText = `Text marked for deletion.`;
-                noteTheme = 'delete';
-            }
-        }
-        
-        // 3. Draw the single margin note if there is text for it
-        if (noteText) {
-            const firstCoord = coords[0];
-            const canvasRect = viewport.convertToViewportRectangle([firstCoord.x, firstCoord.y, firstCoord.x + firstCoord.width, firstCoord.y + firstCoord.height]);
-            const [x1, y1, x2, y2] = canvasRect;
-
-            const anchorX = x1;
-            const anchorY = y1 + (y2 - y1) / 2;
+        // Drawing sidebar callouts
+        if (coords.length > 0) {
+            const c = coords[0];
+            const [x1, y1] = viewport.convertToViewportRectangle([c.x, c.y, c.x + c.width, c.y + c.height]);
             
-            const fontSize = 11 * scale;
-            const lineHeight = 12 * scale;
-            ctx.font = `${fontSize}px Arial`;
-
-            const textX = marginX + 10 * scale;
-            
-            const words = noteText.split(' ');
-            let line = '';
-            let lineCount = 1;
-            for (const word of words) {
-                const testLine = line + word + ' ';
-                if (ctx.measureText(testLine).width > marginWidth - 20 * scale && line.length > 0) {
-                    line = word + ' ';
-                    lineCount++;
-                } else {
-                    line = testLine;
-                }
-            }
-            const noteHeight = lineCount * lineHeight;
-            const boxHeight = noteHeight + 20 * scale;
-
-            const boxY = marginNoteY;
-
-            // Set colors based on theme
-            if (noteTheme === 'add') {
-                ctx.fillStyle = 'rgba(236, 253, 245, 1)'; ctx.strokeStyle = 'rgba(110, 231, 183, 1)';
-            } else if (noteTheme === 'delete') {
-                ctx.fillStyle = 'rgba(254, 226, 226, 1)'; ctx.strokeStyle = 'rgba(248, 113, 113, 1)';
-            } else { // fallback
-                ctx.fillStyle = 'rgba(254, 243, 199, 1)'; ctx.strokeStyle = 'rgba(251, 191, 36, 1)';
-            }
-            
-            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.roundRect(marginX, boxY, marginWidth, boxHeight, 5 * scale);
-            ctx.fill();
-            ctx.stroke();
-
-            clickableAreas.push({ x: marginX, y: boxY, width: marginWidth, height: boxHeight, changeId: change.id });
-            
-            if (noteTheme === 'add') { ctx.fillStyle = '#047857'; }
-            else if (noteTheme === 'delete') { ctx.fillStyle = '#991b1b'; }
-            else { ctx.fillStyle = '#78350f'; }
-            wrapText(ctx, noteText, textX, boxY + 10 * scale + (lineHeight * 0.8), marginWidth - 10 * scale, lineHeight);
-            
-            if (noteTheme === 'add') { ctx.strokeStyle = '#059669'; }
-            else if (noteTheme === 'delete') { ctx.strokeStyle = '#ef4444'; }
-            else { ctx.strokeStyle = '#d97706'; }
-
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 2]);
-            ctx.beginPath();
-            ctx.moveTo(anchorX, anchorY);
-            ctx.bezierCurveTo(anchorX - 30 * scale, anchorY, marginX + 30 * scale, boxY + boxHeight / 2, marginX, boxY + boxHeight / 2);
+            ctx.strokeStyle = color;
+            ctx.setLineDash([2, 2]);
+            ctx.moveTo(x1, y1 + 5);
+            ctx.lineTo(marginX, marginY + 10);
             ctx.stroke();
             ctx.setLineDash([]);
+
+            ctx.fillStyle = isDelete ? '#fef2f2' : '#eff6ff';
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.roundRect(marginX, marginY, marginWidth, 30 * scale, 4 * scale);
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillStyle = color;
+            ctx.font = `bold ${10 * scale}px sans-serif`;
+            ctx.fillText(change.change_type.replace('TEXT_', ''), marginX + 5, marginY + 18 * scale);
             
-            marginNoteY += boxHeight + 15 * scale;
+            clickableAreas.push({ x: marginX, y: marginY, width: marginWidth, height: 30 * scale, changeId: change.id });
+            marginY += 40 * scale;
         }
     }
     return clickableAreas;
