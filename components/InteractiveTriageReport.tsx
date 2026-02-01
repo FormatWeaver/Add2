@@ -1,6 +1,4 @@
 
-
-
 import React, { useMemo } from 'react';
 import { TriageReportData, AppChangeLogItem, ChangeType, CostImpactLevel } from '../types';
 import { SparklesIcon } from './icons/SparklesIcon';
@@ -25,7 +23,19 @@ interface InteractiveTriageReportProps {
 
 const MotionDiv = motion.div as any;
 
-const ZenCard = ({ title, value, subtext, onClick, className = '', icon: Icon }: { title: string, value: string | number, subtext?: string, onClick?: () => void, className?: string, icon?: React.ElementType }) => (
+// Comment: Refined interface to include key and optional children for ZenCard.
+interface ZenCardProps {
+    title: string;
+    value: string | number;
+    subtext?: string;
+    onClick?: () => void;
+    className?: string;
+    icon?: React.ElementType;
+    key?: React.Key;
+    children?: React.ReactNode;
+}
+
+const ZenCard: React.FC<ZenCardProps> = ({ title, value, subtext, onClick, className = '', icon: Icon }) => (
     <MotionDiv
         onClick={onClick}
         className={`bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm text-center flex flex-col justify-center items-center relative ${onClick ? 'cursor-pointer hover:border-brand-400 hover:shadow-lg transition-all duration-200' : ''} ${className}`}
@@ -42,7 +52,16 @@ const ZenCard = ({ title, value, subtext, onClick, className = '', icon: Icon }:
 );
 
 
-const DashboardCard = ({ title, icon: Icon, children, className = '' }: { title: string, icon: React.ElementType, children: React.ReactNode, className?: string }) => (
+// Comment: Refined interface to fix DashboardCard children missing issues.
+interface DashboardCardProps {
+    title: string;
+    icon: React.ElementType;
+    children?: React.ReactNode;
+    className?: string;
+    key?: React.Key;
+}
+
+const DashboardCard: React.FC<DashboardCardProps> = ({ title, icon: Icon, children, className = '' }) => (
     <MotionDiv
         className={`bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm ${className}`}
         initial={{ opacity: 0, y: 20 }}

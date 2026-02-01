@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState } from 'react';
 import { CheckIcon } from './icons/CheckIcon';
 import { ChevronDownIcon } from './icons/ChevronDownIcon';
@@ -104,7 +101,14 @@ const faqs = [
     },
 ];
 
-const FaqItem = ({ q, a }: {q: string, a: string}) => {
+// Comment: Added key to FaqItemProps to fix line 256 error.
+interface FaqItemProps {
+    q: string;
+    a: string;
+    key?: React.Key;
+}
+
+const FaqItem = ({ q, a }: FaqItemProps) => {
     const [isOpen, setIsOpen] = useState(false);
     return (
         <div className="border-b border-slate-200 py-6">

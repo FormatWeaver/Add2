@@ -1,6 +1,4 @@
 
-
-
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DocumentIcon } from './icons/DocumentIcon';
@@ -80,7 +78,14 @@ const StepVisualResults = () => (
     </div>
 );
 
-const FaqItem = ({ q, a }: {q: string, a: string}) => {
+// Comment: Added key to FaqItemProps to fix line 238 error.
+interface FaqItemProps {
+    q: string;
+    a: string;
+    key?: React.Key;
+}
+
+const FaqItem = ({ q, a }: FaqItemProps) => {
     const [isOpen, setIsOpen] = useState(false);
     return (
         <div className="border-b border-slate-200 py-6">
@@ -235,7 +240,7 @@ export const HowItWorksPage = ({ onGetStartedClick }: HowItWorksPageProps) => {
                 <div className="max-w-3xl mx-auto px-4">
                     <h2 className="text-center text-3xl md:text-4xl font-bold text-slate-900">Frequently Asked Questions</h2>
                     <div className="mt-12">
-                       {faqs.map(faq => <FaqItem key={faq.q} {...faq} />)}
+                       {faqs.map((faq, index) => <FaqItem key={index} {...faq} />)}
                     </div>
                 </div>
             </section>

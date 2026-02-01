@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppChangeLogItem, ChangeStatus, AICostAnalysisResult, ChangeType } from '../types';
 import { ChangeListItem } from './ChangeListItem';
@@ -20,7 +15,16 @@ const statusNames = {
     'ALL': 'All'
 };
 
-const FilterButton = ({ status, current, setStatus, count }: { status: 'ALL' | ChangeStatus, current: 'ALL' | ChangeStatus, setStatus: (s: any) => void, count: number }) => {
+// Comment: Added key to FilterButtonProps to fix line 167 error.
+interface FilterButtonProps {
+    status: 'ALL' | ChangeStatus;
+    current: 'ALL' | ChangeStatus;
+    setStatus: (s: any) => void;
+    count: number;
+    key?: React.Key;
+}
+
+const FilterButton: React.FC<FilterButtonProps> = ({ status, current, setStatus, count }) => {
     const isActive = status === current;
     const baseStyle = "px-3 py-1.5 rounded-md text-sm font-semibold transition-all duration-200";
     const activeStyle = "bg-white text-brand-600 shadow-sm";

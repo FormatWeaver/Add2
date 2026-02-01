@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { AICostAnalysisResult, AppChangeLogItem, CostImpactLevel } from '../types';
 import { ChevronLeftIcon } from './icons/ChevronLeftIcon';
@@ -27,7 +26,15 @@ const levelStyles: Record<CostImpactLevel, { color: string, name: string }> = {
     [CostImpactLevel.INFORMATIONAL]: { color: 'bg-indigo-100 text-indigo-800 border-indigo-200', name: 'Informational' },
 };
 
-const ImpactGroup = ({ level, items, onSelectChange }: { level: CostImpactLevel, items: any[], onSelectChange: (id: number) => void }) => {
+// Comment: Added key to ImpactGroupProps to fix line 136 error.
+interface ImpactGroupProps {
+    level: CostImpactLevel;
+    items: any[];
+    onSelectChange: (id: number) => void;
+    key?: React.Key;
+}
+
+const ImpactGroup: React.FC<ImpactGroupProps> = ({ level, items, onSelectChange }) => {
     const [isExpanded, setIsExpanded] = useState(level === CostImpactLevel.HIGH || level === CostImpactLevel.MEDIUM);
     const { color, name } = levelStyles[level];
 

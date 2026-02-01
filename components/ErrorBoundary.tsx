@@ -1,8 +1,9 @@
-import React from 'react';
+
+import React, { ErrorInfo, ReactNode } from 'react';
 import { ErrorDisplay } from './ErrorDisplay';
 
 interface ErrorBoundaryProps {
-    children: React.ReactNode;
+    children?: ReactNode;
     onReset: () => void;
 }
 
@@ -18,18 +19,15 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     }
 
     static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-        // Update state so the next render will show the fallback UI.
         return { hasError: true, error };
     }
 
-    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        // You can also log the error to an error reporting service
+    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error("Uncaught error:", error, errorInfo);
     }
 
     render() {
         if (this.state.hasError) {
-            // You can render any custom fallback UI
             return (
                 <ErrorDisplay
                     title="Application Error"

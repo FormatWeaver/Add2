@@ -1,15 +1,16 @@
 
-
 import React, { useState } from 'react';
 import { QAndAItem } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDownIcon, QuestionMarkCircleIcon } from './icons';
 
-interface QandAViewProps {
-    qaLog: QAndAItem[];
+// Comment: Added key to AccordionItemProps to fix line 66 error.
+interface AccordionItemProps {
+    item: QAndAItem;
+    key?: React.Key;
 }
 
-const AccordionItem = ({ item }: { item: QAndAItem }) => {
+const AccordionItem = ({ item }: AccordionItemProps) => {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -69,5 +70,9 @@ const QandAView = ({ qaLog }: QandAViewProps) => {
         </div>
     );
 };
+
+interface QandAViewProps {
+    qaLog: QAndAItem[];
+}
 
 export default QandAView;

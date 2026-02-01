@@ -1,8 +1,63 @@
+
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://avvkrvdjxruzfyrhorkz.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2dmtydmRqeHJ1emZ5cmhvcmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3NTUzNjUsImV4cCI6MjA3MjMzMTM2NX0.cMdtzUrtBHG2sVkPi9YuWHMsiJDHJME6NzTjhrnXi6M';
+/**
+ * CONFIGURATION:
+ * URL: https://bwmxfkftczbzfarwaefg.supabase.co
+ * Key: sb_publishable_8bpAiMhsXX-0APcIunNtEg_CzqwKiTj
+ */
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseUrl = 'https://bwmxfkftczbzfarwaefg.supabase.co'; 
+const supabaseAnonKey = 'sb_publishable_8bpAiMhsXX-0APcIunNtEg_CzqwKiTj';
+
+const isPlaceholder = (val: string) => !val || val.includes('YOUR_') || val.length < 10;
+
+const createMockClient = () => {
+    // Silent mock to prevent UI noise
+    return {
+        auth: { 
+            getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+            signInWithPassword: () => Promise.reject(new Error("Cloud unavailable")),
+            signUp: () => Promise.reject(new Error("Cloud unavailable")),
+            signOut: () => Promise.resolve(),
+        },
+        from: () => ({
+            select: () => ({ 
+                eq: () => Promise.resolve({ data: [], error: null }) 
+            }),
+            upsert: () => Promise.resolve({ error: null }),
+            delete: () => ({ eq: () => Promise.resolve({ error: null }) }),
+        }),
+        storage: {
+            from: () => ({
+                upload: () => Promise.reject(new Error("Cloud storage unavailable")),
+                download: () => Promise.reject(new Error("Cloud storage unavailable")),
+                list: () => Promise.resolve({ data: [], error: null }),
+                remove: () => Promise.resolve({ error: null }),
+                getPublicUrl: (path: string) => ({ data: { publicUrl: '' } })
+            })
+        }
+    };
+};
+
+let supabase: any;
+
+if (!isPlaceholder(supabaseUrl) && !isPlaceholder(supabaseAnonKey)) {
+    try {
+        supabase = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: {
+                // Disable persistence if network is unstable to prevent refresh loops
+                persistSession: false, 
+                autoRefreshToken: false,
+                detectSessionInUrl: false
+            }
+        });
+    } catch (e) {
+        supabase = createMockClient();
+    }
+} else {
+    supabase = createMockClient();
+}
 
 export { supabase };

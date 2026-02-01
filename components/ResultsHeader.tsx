@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 // FIX: Replace missing FileMetadata type with ProjectFile
 import { AppChangeLogItem, ChangeStatus, ConformingPlan, QAndAItem, ProjectFile } from '../types';
@@ -108,7 +107,7 @@ const ResultsHeader = (props: ResultsHeaderProps) => {
     const allDisabled = isAnalyzingCost || isTriageLoading || isAnalyzingIncrementally || !!isExporting;
 
     return (
-        <div className="bg-white/80 backdrop-blur-sm p-3 rounded-2xl border border-gray-200/80 shadow-sm flex flex-col gap-3 sticky top-[calc(4rem+1rem)] z-30">
+        <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-sm flex flex-col gap-3 mb-2">
            <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2.5"><ReviewAndApproveIcon className="h-6 w-6 text-brand-600"/> Review & Approve</h2>
                 <div className="flex items-center gap-2">

@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -67,7 +68,6 @@
       }
     </script>
     <style>
-      /* For custom scrollbars if needed */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -85,7 +85,7 @@
       }
       .feature-card {
         position: relative;
-        overflow: hidden; /* Important for the glow effect */
+        overflow: hidden;
       }
       .feature-card:before {
         content: '';
@@ -107,14 +107,12 @@
         position: relative;
         z-index: 1;
       }
-
-      /* V3.1: Hero Section Background - Updated to Blueprint Grid */
        .hero-section-bg {
-          background-color: #f8fafc; /* slate-50 */
+          background-color: #f8fafc;
           background-image: 
             linear-gradient(to right, rgba(191, 219, 254, 0.4) 1px, transparent 1px),
             linear-gradient(to bottom, rgba(191, 219, 254, 0.4) 1px, transparent 1px);
-          background-size: 2rem 2rem; /* 32px grid */
+          background-size: 2rem 2rem;
           position: relative;
           overflow: hidden;
         }
@@ -129,24 +127,26 @@
           background-image: radial-gradient(circle, rgba(59, 130, 246, 0.1), transparent 60%);
           pointer-events: none;
         }
-
     </style>
   <script type="importmap">
 {
   "imports": {
-    "jspdf": "https://esm.sh/jspdf@^3.0.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.11.0",
-    "react/": "https://esm.sh/react@^19.1.0/",
-    "react": "https://esm.sh/react@^19.1.0",
-    "recharts": "https://esm.sh/recharts@^3.1.0",
-    "react-dropzone": "https://esm.sh/react-dropzone@^14.3.8",
+    "react": "https://esm.sh/react@19.0.0",
+    "react/": "https://esm.sh/react@19.0.0/",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/": "https://esm.sh/react-dom@19.0.0/",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "react-is": "https://esm.sh/react-is@19.0.0",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.8.2",
+    "pixelmatch": "https://esm.sh/pixelmatch@6.0.0",
+    "@google/genai": "https://esm.sh/@google/genai@1.11.0",
+    "recharts": "https://esm.sh/recharts@2.15.0?external=react,react-dom,react-is",
+    "react-dropzone": "https://esm.sh/react-dropzone@14.3.8?external=react,react-dom",
     "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.5.136",
-    "framer-motion": "https://esm.sh/framer-motion@^12.23.7",
-    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^5.0.2",
-    "pixelmatch": "https://esm.sh/pixelmatch@^7.1.0",
-    "pdf-lib": "https://esm.sh/pdf-lib@^1.17.1",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.45.0"
+    "framer-motion": "https://esm.sh/framer-motion@11.11.17?external=react,react-dom",
+    "pdf-lib": "https://esm.sh/pdf-lib@1.17.1",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.45.0"
   }
 }
 </script>

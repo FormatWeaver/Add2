@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User, AppState, AppPhase, CostImpactLevel } from '../types';
 import { SquaresPlusIcon, FolderClockIcon, GlobeAltIcon, SparklesIcon, ExclamationTriangleIcon, EllipsisVerticalIcon, TrashIcon } from './icons';
@@ -70,12 +71,14 @@ const ProjectActionsMenu = ({ onMonitor, onDelete, onCheck, project }: { onMonit
     );
 };
 
+// Comment: Added key to ProjectCardProps to fix line 224 error.
 interface ProjectCardProps {
     project: AppState;
     onSelectProject: (projectId: string) => void;
     onOpenMonitorModal: (project: AppState) => void;
     onOpenDeleteModal: (project: AppState) => void;
     onCheckForUpdate: (projectId: string) => void;
+    key?: React.Key;
 }
 
 const ProjectCard = ({ project, onSelectProject, onOpenMonitorModal, onOpenDeleteModal, onCheckForUpdate }: ProjectCardProps) => {

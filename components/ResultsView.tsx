@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 // FIX: Replace missing FileMetadata type with ProjectFile
@@ -28,9 +29,11 @@ interface PageCardProps {
     baseDocProxy: pdfjsLib.PDFDocumentProxy | null;
     addendaDocs: Map<string, pdfjsLib.PDFDocumentProxy>;
     onClick: () => void;
+    // Comment: Added key to props type to fix line 451 error.
+    key?: React.Key;
 }
 
-const PageCard = ({ pageInfo, baseDocProxy, addendaDocs, onClick }: PageCardProps) => {
+const PageCard: React.FC<PageCardProps> = ({ pageInfo, baseDocProxy, addendaDocs, onClick }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -114,7 +117,7 @@ const PageCard = ({ pageInfo, baseDocProxy, addendaDocs, onClick }: PageCardProp
         renderThumbnail();
 
         return () => { 
-            isCancelled = true;
+            isCancelled = true; 
             if (renderTaskRef.current) {
                 renderTaskRef.current.cancel();
                 renderTaskRef.current = null;
@@ -327,7 +330,8 @@ export default function ResultsView({
     };
 
     const handleNewAddendaFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
+        // Comment: Adding explicit cast to fix line 332 error.
+        const files = Array.from(e.target.files || []) as File[];
         if (files.length > 0) {
             onAnalyzeAdditionalAddenda(files);
         }
@@ -365,7 +369,7 @@ export default function ResultsView({
             case 'list':
             default:
                 return (
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col h-full container mx-auto">
                         {detailedPage && (
                              <PageDetailModal
                                 pageInfo={detailedPage}
@@ -410,7 +414,7 @@ export default function ResultsView({
                             isAnalyzingIncrementally={isAnalyzingIncrementally}
                         />
 
-                        <div className="mt-6">
+                        <div className="mt-6 flex flex-col space-y-6">
                            {(isSummaryLoading || executiveSummary || summaryError) && (
                                 <ExecutiveSummary 
                                     summary={executiveSummary} 
@@ -418,82 +422,82 @@ export default function ResultsView({
                                     isLoading={isSummaryLoading}
                                 />
                             )}
-                        </div>
                         
-                        <div className="flex-grow overflow-y-auto p-4 sm:p-6 bg-slate-50 mt-4 relative">
-                            <AnimatePresence>
-                                {isAnalyzingIncrementally && (
-                                    <MotionDiv 
-                                        className="absolute inset-0 bg-white/80 backdrop-blur-sm z-40"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                    >
-                                        <ProcessingView headline="Analyzing New Addenda..." subline="Merging findings into your current project." />
-                                    </MotionDiv>
-                                )}
-                            </AnimatePresence>
-                             {activeView === 'qa' ? (
-                                <QandAView qaLog={qaLog} />
-                             ) : conformedDocument.length > 0 ? (
-                                <>
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-semibold text-slate-800">Conformed {activeDocTitle}</h3>
-                                        {totalPages > 1 && (
-                                            <span className="text-sm font-medium text-slate-600 tabular-nums">
-                                                Page {currentPage} of {totalPages}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 sm:gap-6">
-                                        {paginatedDocument.map(pageInfo => (
-                                            <PageCard 
-                                                key={`${activeView}-${pageInfo.conformedPageNumber}`} 
-                                                pageInfo={pageInfo}
-                                                baseDocProxy={activeBaseDocProxy}
-                                                addendaDocs={addendaDocs}
-                                                onClick={() => setDetailedPage(pageInfo)}
-                                            />
-                                        ))}
-                                    </div>
-                                    {totalPages > 1 && (
-                                        <div className="flex items-center justify-center gap-6 mt-8">
-                                            <button
-                                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                                disabled={currentPage === 1}
-                                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                aria-label="Previous page"
-                                            >
-                                                <ChevronLeftIcon className="h-5 w-5" />
-                                            </button>
-                                            <span className="text-sm font-semibold text-slate-700 tabular-nums">
-                                                Page {currentPage} <span className="font-normal text-slate-500">of {totalPages}</span>
-                                            </span>
-                                            <button
-                                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                                disabled={currentPage === totalPages}
-                                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                aria-label="Next page"
-                                            >
-                                                <ChevronRightIcon className="h-5 w-5" />
-                                            </button>
-                                        </div>
+                            <div className="p-4 sm:p-6 bg-slate-50 rounded-2xl border border-slate-200 shadow-sm relative">
+                                <AnimatePresence>
+                                    {isAnalyzingIncrementally && (
+                                        <MotionDiv 
+                                            className="absolute inset-0 bg-white/80 backdrop-blur-sm z-40 rounded-2xl"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                        >
+                                            <ProcessingView headline="Analyzing New Addenda..." subline="Merging findings into your current project." />
+                                        </MotionDiv>
                                     )}
-                                </>
-                            ) : (
-                                <div className="flex items-center justify-center h-full">
-                                    <div className="text-center text-slate-500">
-                                         <DocumentIcon className="h-16 w-16 mx-auto text-slate-300" />
-                                         <h3 className="mt-2 text-lg font-semibold">No Document to Display</h3>
-                                         <p className="mt-1 text-sm">The conformed document is empty.</p>
+                                </AnimatePresence>
+                                 {activeView === 'qa' ? (
+                                    <QandAView qaLog={qaLog} />
+                                 ) : conformedDocument.length > 0 ? (
+                                    <>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-lg font-semibold text-slate-800">Conformed {activeDocTitle}</h3>
+                                            {totalPages > 1 && (
+                                                <span className="text-sm font-medium text-slate-600 tabular-nums">
+                                                    Page {currentPage} of {totalPages}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 sm:gap-6">
+                                            {paginatedDocument.map(pageInfo => (
+                                                <PageCard 
+                                                    key={`${activeView}-${pageInfo.conformedPageNumber}`} 
+                                                    pageInfo={pageInfo}
+                                                    baseDocProxy={activeBaseDocProxy}
+                                                    addendaDocs={addendaDocs}
+                                                    onClick={() => setDetailedPage(pageInfo)}
+                                                />
+                                            ))}
+                                        </div>
+                                        {totalPages > 1 && (
+                                            <div className="flex items-center justify-center gap-6 mt-8">
+                                                <button
+                                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                                    disabled={currentPage === 1}
+                                                    className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                    aria-label="Previous page"
+                                                >
+                                                    <ChevronLeftIcon className="h-5 w-5" />
+                                                </button>
+                                                <span className="text-sm font-semibold text-slate-700 tabular-nums">
+                                                    Page {currentPage} <span className="font-normal text-slate-500">of {totalPages}</span>
+                                                </span>
+                                                <button
+                                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                                    disabled={currentPage === totalPages}
+                                                    className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                    aria-label="Next page"
+                                                >
+                                                    <ChevronRightIcon className="h-5 w-5" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="flex items-center justify-center h-64">
+                                        <div className="text-center text-slate-500">
+                                             <DocumentIcon className="h-16 w-16 mx-auto text-slate-300" />
+                                             <h3 className="mt-2 text-lg font-semibold">No Document to Display</h3>
+                                             <p className="mt-1 text-sm">The conformed document is empty.</p>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 );
         }
     };
     
-    return <div className="h-full">{renderContent()}</div>;
+    return <div className="min-h-full py-6 px-4">{renderContent()}</div>;
 }

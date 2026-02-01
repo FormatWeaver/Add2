@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { TriageReportData, AICostAnalysisResult } from '../types';
 import { SparklesIcon } from './icons/SparklesIcon';
@@ -20,7 +19,14 @@ interface ExecutiveSummaryReportProps {
     onBack: () => void;
 }
 
-const ReportCard = ({ icon: Icon, title, children }: { icon: React.ElementType, title: string, children: React.ReactNode }) => (
+// Comment: Refined interface to fix ReportCard children missing issues on lines 74, 87, 93, 131.
+interface ReportCardProps {
+    icon: React.ElementType;
+    title: string;
+    children?: React.ReactNode;
+}
+
+const ReportCard: React.FC<ReportCardProps> = ({ icon: Icon, title, children }) => (
     <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2.5">
             <Icon className="h-6 w-6 text-brand-500" />

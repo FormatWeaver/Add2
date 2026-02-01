@@ -1,3 +1,4 @@
+
 import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -21,7 +22,15 @@ const MotionImg = motion.img as any;
 
 // --- Re-designed FileCard for Addenda View ---
 // FIX: Replace missing FileMetadata type with ProjectFile
-const FileCard = ({ file, onRemove, isBlueprintReady }: { file: File | ProjectFile | null, onRemove?: (e: React.MouseEvent) => void, isBlueprintReady?: boolean }) => {
+// Comment: Added key to props type to fix line 429 error.
+interface FileCardProps {
+    file: File | ProjectFile | null;
+    onRemove?: (e: React.MouseEvent) => void;
+    isBlueprintReady?: boolean;
+    key?: React.Key;
+}
+
+const FileCard: React.FC<FileCardProps> = ({ file, onRemove, isBlueprintReady }) => {
     const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [progress, setProgress] = useState(0);
@@ -207,7 +216,7 @@ interface DocumentUploaderProps {
 const StepIndicator = ({ currentStep }: { currentStep: number }) => {
     const steps = ["Create Blueprint", "Analyze Addenda"];
     return (
-      <div className="flex items-center justify-center gap-4 sm:gap-8 w-full max-w-lg mx-auto mb-8 sm:mb-12">
+      <div className="flex items-center justify-center gap-4 sm:gap-8 w-full max-w-lg mx-auto mb-8 sm:mb-12 flex-shrink-0">
         {steps.map((step, index) => {
           const stepNumber = index + 1;
           const isCompleted = stepNumber < currentStep;
@@ -312,7 +321,7 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
 
 
     const setupView = (
-        <MotionDiv key="setup" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.5, ease: 'easeInOut' }} className="w-full max-w-5xl">
+        <MotionDiv key="setup" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.5, ease: 'easeInOut' }} className="w-full max-w-5xl pb-16">
             <div className="text-center mb-8">
                 <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Create a New Project</h1>
                 <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-600">Give your project a name, then upload the original documents to create a Blueprint for analysis.</p>
@@ -363,7 +372,7 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
     );
 
     const addendaView = (
-        <MotionDiv key="addenda" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.5, ease: 'easeInOut' }} className="w-full max-w-5xl">
+        <MotionDiv key="addenda" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.5, ease: 'easeInOut' }} className="w-full max-w-5xl pb-16">
             <div className="text-center mb-8">
                 <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Blueprint Ready for "{appState.projectName}"</h1>
                 <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-600">Upload one or more addenda to get a complete, conformed document set.</p>
@@ -442,13 +451,13 @@ export default function DocumentUploader({ appState, stagedFiles, onStartIndexin
     );
 
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-white">
+        <div className="w-full min-h-full flex flex-col items-center justify-start py-8 px-4 bg-white overflow-y-auto">
             <StepIndicator currentStep={isProjectSetup ? 1 : 2} />
              <AnimatePresence mode="wait">
                 {isProjectSetup && setupView}
                 {isAddendaUpload && addendaView}
              </AnimatePresence>
-             <p className="mt-8 text-sm text-slate-500">We take data security seriously. Your files are encrypted and confidential.</p>
+             <p className="mt-auto pt-8 text-sm text-slate-500">We take data security seriously. Your files are encrypted and confidential.</p>
         </div>
     );
 }
